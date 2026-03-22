@@ -464,13 +464,13 @@ Detailed task specs are in [`tasks/`](tasks/).
 
 ### Phase 1 — Core (MVP)
 - [x] [01 — Project Scaffold](tasks/01-project-scaffold.md): Composer package, PSR-4 autoloading, Slim 4 bootstrap, sample entry point
-- [ ] [02 — Config Validation](tasks/02-config-validation.md): Validate config array, merge defaults, throw on invalid input
-- [ ] [03 — Database Setup](tasks/03-database-setup.md): SQLite connection with WAL mode, auto-create tables on first run
-- [ ] [04 — Form Rendering](tasks/04-form-rendering.md): FormController + Tailwind-styled form template with all field types
-- [ ] [05 — Client-Side Validation](tasks/05-client-side-validation.md): Inline validation on blur/submit, AJAX form submission, iframe height reporting
-- [ ] [06 — Server-Side Validation & Storage](tasks/06-server-side-validation-and-storage.md): SubmitController with input validation, sanitization, and SQLite insert
-- [ ] [07 — Success/CTA View](tasks/07-success-cta-view.md): Post-submission screen with social media links and animated transition
-- [ ] [08 — Embed JS Loader](tasks/08-embed-js.md): Lightweight JS loader with inline and modal modes, iframe auto-resize
+- [x] [02 — Config Validation](tasks/02-config-validation.md): Validate config array, merge defaults, throw on invalid input
+- [x] [03 — Database Setup](tasks/03-database-setup.md): SQLite connection with WAL mode, auto-create tables on first run
+- [x] [04 — Form Rendering](tasks/04-form-rendering.md): FormController + Tailwind-styled form template with all field types
+- [x] [05 — Client-Side Validation](tasks/05-client-side-validation.md): Inline validation on blur/submit, AJAX form submission, iframe height reporting
+- [x] [06 — Server-Side Validation & Storage](tasks/06-server-side-validation-and-storage.md): SubmitController with input validation, sanitization, and SQLite insert
+- [x] [07 — Success/CTA View](tasks/07-success-cta-view.md): Post-submission screen with social media links and animated transition
+- [x] [08 — Embed JS Loader](tasks/08-embed-js.md): Lightweight JS loader with inline and modal modes, iframe auto-resize
 
 ### Phase 2 — Notifications & Security
 - [ ] [09 — reCAPTCHA v3](tasks/09-recaptcha-integration.md): Client-side token generation, server-side verification middleware
