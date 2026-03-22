@@ -463,7 +463,7 @@ This gives you: name + email form, no captcha, no email notifications, default i
 Detailed task specs are in [`tasks/`](tasks/).
 
 ### Phase 1 — Core (MVP)
-- [ ] [01 — Project Scaffold](tasks/01-project-scaffold.md): Composer package, PSR-4 autoloading, Slim 4 bootstrap, sample entry point
+- [x] [01 — Project Scaffold](tasks/01-project-scaffold.md): Composer package, PSR-4 autoloading, Slim 4 bootstrap, sample entry point
 - [ ] [02 — Config Validation](tasks/02-config-validation.md): Validate config array, merge defaults, throw on invalid input
 - [ ] [03 — Database Setup](tasks/03-database-setup.md): SQLite connection with WAL mode, auto-create tables on first run
 - [ ] [04 — Form Rendering](tasks/04-form-rendering.md): FormController + Tailwind-styled form template with all field types

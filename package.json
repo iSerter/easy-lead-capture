@@ -1,0 +1,10 @@
+{
+    "private": true,
+    "devDependencies": {
+        "tailwindcss": "^3"
+    },
+    "scripts": {
+        "build:css": "npx tailwindcss -i assets/input.css -o assets/styles.css --minify",
+        "watch:css": "npx tailwindcss -i assets/input.css -o assets/styles.css --watch"
+    }
+}
