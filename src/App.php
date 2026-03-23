@@ -68,27 +68,16 @@ class App
         $this->slimApp->get('/assets/styles.css', [new Controllers\EmbedController(), 'styles']);
 
         // Admin routes
-        $this->slimApp->get('/admin', function (Request $request, Response $response) use ($config) {
-            $response->getBody()->write('Admin dashboard');
-            return $response;
-        });
+        $adminController = new Controllers\AdminController($config, $db);
+        $adminAuthMiddleware = new Middleware\AdminAuthMiddleware($db, $config['base_path']);
 
-        $this->slimApp->get('/admin/login', function (Request $request, Response $response) use ($config) {
-            $response->getBody()->write('Admin login');
-            return $response;
-        });
+        $this->slimApp->get('/admin/login', [$adminController, 'loginForm']);
+        $this->slimApp->post('/admin/login', [$adminController, 'login']);
+        $this->slimApp->post('/admin/logout', [$adminController, 'logout']);
 
-        $this->slimApp->post('/admin/login', function (Request $request, Response $response) use ($config) {
-            return $response;
-        });
-
-        $this->slimApp->post('/admin/logout', function (Request $request, Response $response) use ($config) {
-            return $response;
-        });
-
-        $this->slimApp->get('/admin/export', function (Request $request, Response $response) use ($config) {
-            $response->getBody()->write('CSV export');
-            return $response;
-        });
+        $this->slimApp->group('/admin', function ($group) use ($adminController) {
+            $group->get('', [$adminController, 'index']);
+            $group->get('/export', [$adminController, 'export']);
+        })->add($adminAuthMiddleware);
     }
 }

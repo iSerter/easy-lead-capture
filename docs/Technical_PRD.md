@@ -473,15 +473,15 @@ Detailed task specs are in [`tasks/`](tasks/).
 - [x] [08 — Embed JS Loader](tasks/08-embed-js.md): Lightweight JS loader with inline and modal modes, iframe auto-resize
 
 ### Phase 2 — Notifications & Security
-- [ ] [09 — reCAPTCHA v3](tasks/09-recaptcha-integration.md): Client-side token generation, server-side verification middleware
-- [ ] [10 — CSRF & Security Headers](tasks/10-csrf-and-security-headers.md): CSRF token flow, CSP/XFO/security headers
-- [ ] [11 — Email Notifications](tasks/11-email-notifications.md): Symfony Mailer with SMTP/Sendmail/SES, admin notification on new lead
-- [ ] [15 — API Ping](tasks/15-api-ping.md): POST lead data to external API endpoint after submission (deferred)
+- [x] [09 — reCAPTCHA v3](tasks/09-recaptcha-integration.md): Client-side token generation, server-side verification middleware
+- [x] [10 — CSRF & Security Headers](tasks/10-csrf-and-security-headers.md): CSRF token flow, CSP/XFO/security headers
+- [x] [11 — Email Notifications](tasks/11-email-notifications.md): Symfony Mailer with SMTP/Sendmail/SES, admin notification on new lead
+- [x] [15 — API Ping](tasks/15-api-ping.md): POST lead data to external API endpoint after submission (deferred)
 
 ### Phase 3 — Admin Panel
-- [ ] [12 — Admin Authentication](tasks/12-admin-auth.md): Password login, session tokens in SQLite, rate limiting
-- [ ] [13 — Admin Dashboard](tasks/13-admin-dashboard.md): Paginated leads table with date filtering
-- [ ] [14 — CSV Export](tasks/14-csv-export.md): Downloadable CSV with date filtering, streamed output
+- [x] [12 — Admin Authentication](tasks/12-admin-auth.md): Password login, session tokens in SQLite, rate limiting
+- [x] [13 — Admin Dashboard](tasks/13-admin-dashboard.md): Paginated leads table with date filtering
+- [x] [14 — CSV Export](tasks/14-csv-export.md): Downloadable CSV with date filtering, streamed output
 
 ---
 
