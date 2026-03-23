@@ -64,4 +64,131 @@ class ConfigValidatorTest extends TestCase
             'mail' => ['mailer' => 'smtp']
         ]);
     }
+
+    public function test_data_dir_maps_to_database_path(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'data_dir' => '/tmp/my-app-data',
+        ]);
+
+        $this->assertEquals('/tmp/my-app-data/leads.db', $config['database']['path']);
+    }
+
+    public function test_data_dir_strips_trailing_slash(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'data_dir' => '/tmp/my-app-data/',
+        ]);
+
+        $this->assertEquals('/tmp/my-app-data/leads.db', $config['database']['path']);
+    }
+
+    public function test_explicit_database_path_takes_precedence_over_data_dir(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'data_dir' => '/tmp/ignored',
+            'database' => ['path' => '/tmp/explicit/custom.db'],
+        ]);
+
+        $this->assertEquals('/tmp/explicit/custom.db', $config['database']['path']);
+    }
+
+    public function test_data_dir_is_not_in_final_config(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'data_dir' => '/tmp/my-app-data',
+        ]);
+
+        $this->assertArrayNotHasKey('data_dir', $config);
+    }
+
+    public function test_default_database_path_when_no_data_dir(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+        ]);
+
+        $this->assertStringEndsWith('/data/leads.db', $config['database']['path']);
+    }
+
+    public function test_it_validates_field_labels(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Field 'broken' must have a 'label'");
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'form' => [
+                'fields' => [
+                    'broken' => ['required' => true],
+                ],
+            ],
+        ]);
+    }
+
+    public function test_it_validates_ping_api_when_enabled(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('api_endpoint');
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'on_submit' => [
+                'ping_api' => ['enabled' => true],
+            ],
+        ]);
+    }
+
+    public function test_ping_api_defaults_to_disabled(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+        ]);
+
+        $this->assertFalse($config['on_submit']['ping_api']['enabled']);
+    }
+
+    public function test_captcha_defaults_to_disabled(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+        ]);
+
+        $this->assertFalse($config['captcha']['enabled']);
+    }
+
+    public function test_it_validates_captcha_keys_when_enabled(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('recaptcha_site_key');
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'captcha' => ['enabled' => true],
+        ]);
+    }
+
+    public function test_custom_form_fields_merge_with_defaults(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'form' => [
+                'fields' => [
+                    'email' => ['label' => 'Work Email', 'required' => true, 'field_type' => 'email'],
+                    'phone' => ['label' => 'Phone', 'required' => false],
+                    'message' => ['label' => 'Message', 'field_type' => 'textarea'],
+                ],
+            ],
+        ]);
+
+        // Default 'name' field is kept, user fields are merged in
+        $this->assertCount(4, $config['form']['fields']);
+        $this->assertArrayHasKey('name', $config['form']['fields']);
+        $this->assertEquals('Work Email', $config['form']['fields']['email']['label']);
+        $this->assertEquals('textarea', $config['form']['fields']['message']['field_type']);
+    }
 }

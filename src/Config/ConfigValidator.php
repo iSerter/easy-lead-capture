@@ -63,6 +63,12 @@ class ConfigValidator
 
     public static function validate(array $config): array
     {
+        // Support data_dir shorthand: convert to database.path before merge
+        if (isset($config['data_dir']) && !isset($config['database']['path'])) {
+            $config['database']['path'] = rtrim($config['data_dir'], '/') . '/leads.db';
+        }
+        unset($config['data_dir']);
+
         // Merge with defaults (recursive merge for some keys)
         $mergedConfig = self::arrayMergeRecursiveDistinct(self::DEFAULT_CONFIG, $config);
 
