@@ -75,7 +75,7 @@
     <?php include __DIR__ . '/success.php'; ?>
 </div>
 
-<script>
+<script nonce="<?= htmlspecialchars($csp_nonce) ?>">
     (function() {
         const formView = document.getElementById('form-view');
         const successView = document.getElementById('success-view');
@@ -92,7 +92,7 @@
         };
 
         const getErrorMessage = (input) => {
-            const label = input.closest('.space-y-1.5').querySelector('label').innerText.replace('*', '').trim();
+            const label = input.closest('.space-y-1\\.5').querySelector('label').innerText.replace('*', '').trim();
             if (input.validity.valueMissing || (input.type === 'checkbox' && !form.querySelectorAll(`input[name="${input.name}"]:checked`).length)) {
                 return `${label} is required.`;
             }
@@ -109,7 +109,7 @@
         };
 
         const validateField = (input) => {
-            const container = input.closest('.space-y-1.5');
+            const container = input.closest('.space-y-1\\.5');
             const errorMsg = container.querySelector('.error-message');
             const message = getErrorMessage(input);
 
@@ -211,7 +211,7 @@
                         Object.keys(result.errors).forEach(key => {
                             const input = form.querySelector(`[name="${key}"], [name="${key}[]"]`);
                             if (input) {
-                                const container = input.closest('.space-y-1.5');
+                                const container = input.closest('.space-y-1\\.5');
                                 const errorMsg = container.querySelector('.error-message');
                                 errorMsg.innerText = result.errors[key];
                                 errorMsg.classList.remove('opacity-0');

@@ -27,15 +27,16 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
         // Admin headers
         if (str_starts_with($uri, $this->basePath . '/admin')) {
             $response = $response->withHeader('X-Frame-Options', 'SAMEORIGIN');
-        } else {
-            // Form/embed headers
+        }
+
+        // CSP for non-form routes (form route sets its own CSP with nonce in FormController)
+        if (!$response->hasHeader('Content-Security-Policy')) {
             $csp = "default-src 'self'; " .
                    "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://www.google.com/; " .
                    "style-src 'self' 'unsafe-inline'; " .
                    "frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/ https://www.google.com/; " .
                    "img-src 'self' data: *; " .
                    "connect-src 'self' https://www.google.com/recaptcha/ https://www.google.com/";
-            
             $response = $response->withHeader('Content-Security-Policy', $csp);
         }
 
