@@ -9,6 +9,7 @@ use Iserter\EasyLeadCapture\Support\DeferredTaskRunner;
 use Iserter\EasyLeadCapture\Mail\Mailer;
 use Iserter\EasyLeadCapture\Mail\MailerFactory;
 use Iserter\EasyLeadCapture\Support\ApiPinger;
+use Iserter\EasyLeadCapture\Support\SourceTracker;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -103,6 +104,12 @@ class SubmitController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(422);
         }
 
+        // Merge source tracking data if enabled
+        if ($this->config['source_tracking']['enabled']) {
+            $sourceData = $_SESSION['elc_source'] ?? [];
+            $validatedData = SourceTracker::mergeIntoLeadData($validatedData, $sourceData);
+        }
+
         // Store lead
         try {
             $pdo = $this->db->getConnection();
@@ -122,8 +129,9 @@ class SubmitController
                 ':captcha_score' => $captchaScore,
             ]);
 
-            // Success: regenerate CSRF token
+            // Success: regenerate CSRF token and clear source tracking from session
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            unset($_SESSION['elc_source']);
 
             // Send notification email (deferred)
             $this->deferred->defer(fn() => $this->mailer->sendLeadNotification($validatedData, $this->config));

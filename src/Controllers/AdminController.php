@@ -185,6 +185,7 @@ class AdminController
             'from' => $from,
             'to' => $to,
             'fields' => $this->config['form']['fields'],
+            'source_tracking' => $this->config['source_tracking'],
         ];
 
         ob_start();
@@ -234,10 +235,20 @@ class AdminController
         $body->write("\xEF\xBB\xBF");
 
         $fields = $this->config['form']['fields'];
+        $sourceTracking = $this->config['source_tracking'];
         $header = [];
         foreach ($fields as $field) {
             $header[] = $field['label'];
         }
+
+        if ($sourceTracking['enabled']) {
+            foreach ($sourceTracking['params'] as $param) {
+                // Convert utm_source to Source, etc.
+                $label = ucwords(str_replace(['utm_', '_'], ['', ' '], $param));
+                $header[] = $label;
+            }
+        }
+
         $header[] = 'Date';
 
         $output = fopen('php://temp', 'r+');
@@ -253,6 +264,14 @@ class AdminController
                 }
                 $csvRow[] = $val;
             }
+
+            if ($sourceTracking['enabled']) {
+                $source = $data['_source'] ?? [];
+                foreach ($sourceTracking['params'] as $param) {
+                    $csvRow[] = $source[$param] ?? '';
+                }
+            }
+
             $csvRow[] = $row['created_at'];
             fputcsv($output, $csvRow);
         }

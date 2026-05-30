@@ -169,7 +169,8 @@ class AdminControllerTest extends TestCase
         $this->assertStringContainsString('attachment; filename="leads-', $response->getHeaderLine('Content-Disposition'));
         
         $body = (string)$response->getBody();
-        $this->assertStringContainsString('Name,E-mail,Date', $body);
+        // Updated for UTM tracking params being enabled by default
+        $this->assertStringContainsString('Name,E-mail,Source,Medium,Campaign,Term,Content,Date', $body);
         $this->assertStringContainsString('John Doe', $body);
         $this->assertStringContainsString('john@example.com', $body);
         $this->assertStringContainsString('2023-01-01 12:00:00', $body);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Iserter\EasyLeadCapture\Controllers;
 
+use Iserter\EasyLeadCapture\Support\SourceTracker;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -24,6 +25,19 @@ class FormController
 
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+
+        // Capture source tracking params if enabled
+        if ($this->config['source_tracking']['enabled']) {
+            $sourceData = SourceTracker::extractFromQuery(
+                $request->getQueryParams(),
+                $this->config['source_tracking']['params']
+            );
+            
+            // Only overwrite if we actually found something, or if you prefer 
+            // the latest embed URL to always win even if it has no params (clearing previous ones).
+            // PRD says: "overwrite on each form page load so the latest embed URL wins"
+            $_SESSION['elc_source'] = $sourceData;
         }
 
         $cspNonce = base64_encode(random_bytes(16));

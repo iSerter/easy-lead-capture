@@ -69,13 +69,20 @@
                                     <?= htmlspecialchars($field['label']) ?>
                                 </th>
                             <?php endforeach; ?>
+                            <?php if ($source_tracking['enabled']): ?>
+                                <?php foreach ($source_tracking['params'] as $param): ?>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <?= htmlspecialchars(ucwords(str_replace(['utm_', '_'], ['', ' '], $param))) ?>
+                                    </th>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         <?php if (empty($leads)): ?>
                             <tr>
-                                <td colspan="<?= count($fields) + 2 ?>" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="<?= count($fields) + ($source_tracking['enabled'] ? count($source_tracking['params']) : 0) + 2 ?>" class="px-6 py-12 text-center text-gray-500">
                                     No leads found.
                                 </td>
                             </tr>
@@ -97,6 +104,16 @@
                                         ?>
                                     </td>
                                 <?php endforeach; ?>
+                                <?php if ($source_tracking['enabled']): ?>
+                                    <?php 
+                                        $source = $lead['data']['_source'] ?? [];
+                                        foreach ($source_tracking['params'] as $param): 
+                                    ?>
+                                        <td class="px-6 py-4 text-sm text-gray-500">
+                                            <?= htmlspecialchars((string)($source[$param] ?? '-')) ?>
+                                        </td>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <?= htmlspecialchars($lead['created_at']) ?>
                                 </td>

@@ -94,6 +94,25 @@ Add the provided `.htaccess` to the same directory for Apache, or configure ngin
 <script>EasyLeadCapture.render('#lead-form');</script>
 ```
 
+### Source tracking
+
+Allow capturing UTM parameters from the embed URL. These values appear in the admin panel, CSV export, email notifications, and API ping payload.
+
+**iframe:**
+```html
+<iframe src="https://yoursite.com/lead-capture/form?utm_source=google&utm_medium=cpc" ...></iframe>
+```
+
+**JavaScript loader:**
+```js
+EasyLeadCapture.render('#lead-form', {
+  params: {
+    utm_source: 'google',
+    utm_medium: 'cpc'
+  }
+});
+```
+
 ### 4. Admin Panel
 
 Visit `/lead-capture/admin` to view captured leads and export as CSV.

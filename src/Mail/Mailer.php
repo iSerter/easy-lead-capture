@@ -53,6 +53,24 @@ class Mailer
 
             $html .= '</tbody></table>';
 
+            // Source tracking
+            $sourceData = $leadData['_source'] ?? [];
+            if (!empty($sourceData)) {
+                $html .= '<h3 style="margin-top: 20px;">Source Tracking</h3>';
+                $html .= '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">';
+                $html .= '<thead><tr style="background-color: #f3f4f6;"><th>Param</th><th>Value</th></tr></thead>';
+                $html .= '<tbody>';
+                foreach ($sourceData as $key => $value) {
+                    $label = ucwords(str_replace(['utm_', '_'], ['', ' '], $key));
+                    $html .= sprintf(
+                        '<tr><td style="font-weight: bold; width: 30%%;">%s</td><td>%s</td></tr>',
+                        htmlspecialchars($label),
+                        htmlspecialchars((string)$value)
+                    );
+                }
+                $html .= '</tbody></table>';
+            }
+
             $email->html($html);
 
             $this->mailer->send($email);

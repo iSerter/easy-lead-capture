@@ -59,6 +59,16 @@ class ConfigValidator
             'from_address' => 'noreply@example.com',
             'from_name' => 'Easy Lead Capture',
         ],
+        'source_tracking' => [
+            'enabled' => true,
+            'params' => [
+                'utm_source',
+                'utm_medium',
+                'utm_campaign',
+                'utm_term',
+                'utm_content',
+            ],
+        ],
     ];
 
     public static function validate(array $config): array
@@ -129,6 +139,24 @@ class ConfigValidator
             }
             if (empty($apiConfig['api_key'])) {
                 throw new InvalidArgumentException("Config error: 'on_submit.ping_api.api_key' is required when enabled.");
+            }
+        }
+
+        // 7. Validate source_tracking
+        if ($mergedConfig['source_tracking']['enabled']) {
+            if (!is_array($mergedConfig['source_tracking']['params']) || empty($mergedConfig['source_tracking']['params'])) {
+                throw new InvalidArgumentException("Config error: 'source_tracking.params' must be a non-empty array when enabled.");
+            }
+            
+            $seen = [];
+            foreach ($mergedConfig['source_tracking']['params'] as $param) {
+                if (empty($param) || !is_string($param) || !preg_match('/^[a-z0-9_]+$/i', $param)) {
+                    throw new InvalidArgumentException("Config error: Source tracking param '{$param}' is invalid (must be alphanumeric/underscore).");
+                }
+                if (isset($seen[$param])) {
+                    throw new InvalidArgumentException("Config error: Duplicate source tracking param '{$param}'.");
+                }
+                $seen[$param] = true;
             }
         }
 

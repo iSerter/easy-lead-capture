@@ -9,8 +9,13 @@
             if (!target) return;
 
             const mode = options.mode || 'inline';
-            const url = options.formUrl || formUrl;
+            let url = options.formUrl || formUrl;
             const iframeId = 'elc-iframe-' + Math.random().toString(36).substr(2, 9);
+
+            // Append params if provided
+            if (options.params && typeof options.params === 'object') {
+                url = this.appendParams(url, options.params);
+            }
 
             if (mode === 'modal') {
                 this.renderModal(url, iframeId);
@@ -19,6 +24,36 @@
             }
 
             this.setupResizeListener(iframeId);
+        },
+
+        appendParams: function(url, params) {
+            if (!params || !Object.keys(params).length) return url;
+            
+            // Handle absolute vs relative URLs
+            let baseUrl = window.location.origin;
+            let fullUrl;
+            
+            try {
+                fullUrl = new URL(url, baseUrl);
+            } catch (e) {
+                // If URL parsing fails, fallback to simple string manipulation
+                const separator = url.indexOf('?') !== -1 ? '&' : '?';
+                const qs = Object.entries(params)
+                    .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v))
+                    .join('&');
+                return url + separator + qs;
+            }
+
+            Object.entries(params).forEach(([k, v]) => {
+                fullUrl.searchParams.set(k, v);
+            });
+
+            // If the original URL was relative, return only path + search
+            if (url.startsWith('/') || !url.includes('://')) {
+                return fullUrl.pathname + fullUrl.search;
+            }
+            
+            return fullUrl.href;
         },
 
         renderInline: function(target, url, iframeId) {
