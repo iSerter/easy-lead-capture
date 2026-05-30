@@ -1,13 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
   "packages": {
     ".": {
       "release-type": "php",
       "package-name": "iserter/easy-lead-capture",
-      "changelog-path": "CHANGELOG.md",
-      "release-as": "0.1.0"
+      "changelog-path": "CHANGELOG.md"
     }
   },
-  "pull-request-title-pattern": "chore${scope}: release${component} ${version}",
-  "include-v-in-tag": true
+  "pull-request-title-pattern": "chore${scope}: release${component} ${version}"
 }

@@ -95,6 +95,8 @@ Match the `composer.json` version exactly.
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
   "packages": {
     ".": {
       "release-type": "php",
@@ -102,10 +104,12 @@ Match the `composer.json` version exactly.
       "changelog-path": "CHANGELOG.md"
     }
   },
-  "pull-request-title-pattern": "chore${scope}: release${component} ${version}",
-  "include-v-in-tag": true
+  "pull-request-title-pattern": "chore${scope}: release${component} ${version}"
 }
 ```
+
+- `"include-component-in-tag": false` — **required** for single-package Composer repos. In manifest mode this defaults to `true`, which prefixes tags with the component name (`iserter/easy-lead-capture-v0.1.0`). Setting it to `false` produces plain semver tags (`v0.1.0`) that Packagist/Composer expect. See Task 19.
+- `package-name` must **not** be relied on for tag naming when `include-component-in-tag` is `false`; it is used only for changelog grouping and Release PR titles.
 
 Optional root-level flags to consider:
 
@@ -175,7 +179,7 @@ After merging the workflow:
 2. Confirm a **Release PR** appears within a few minutes.
 3. Review the PR diff: `composer.json` version, `CHANGELOG.md`, `.release-please-manifest.json`.
 4. Merge the Release PR.
-5. Confirm a GitHub **Release** and tag `vX.Y.Z` exist.
+5. Confirm a GitHub **Release** and tag `vX.Y.Z` exist — the tag must be plain semver (`v0.1.0`), **not** package-prefixed (`iserter/easy-lead-capture-v0.1.0`). If you see the prefixed form, `include-component-in-tag: false` is missing (see Task 19).
 6. Verify `composer.json` on `main` shows the new version.
 
 If no Release PR appears, check Actions logs and repository “Allow Actions to create PRs” setting.
