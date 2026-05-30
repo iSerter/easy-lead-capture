@@ -1,6 +1,6 @@
 {
     "name": "iserter/easy-lead-capture",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "description": "Lightweight, embeddable lead capture system with SQLite storage, email notifications, and optional reCAPTCHA v3 protection.",
     "type": "library",
     "license": "MIT",
