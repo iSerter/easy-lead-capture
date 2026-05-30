@@ -157,7 +157,7 @@ class AdminControllerTest extends TestCase
         
         // Add a lead
         $data = json_encode(['name' => 'John Doe', 'email' => 'john@example.com']);
-        $pdo->prepare("INSERT INTO leads (data, created_at) VALUES (?, '2023-01-01 12:00:00')")->execute([$data]);
+        $pdo->prepare("INSERT INTO leads (data, status, notes, created_at) VALUES (?, 'new', 'Some note', '2023-01-01 12:00:00')")->execute([$data]);
 
         $request = (new RequestFactory())->createRequest('GET', '/admin/export');
         $response = (new ResponseFactory())->createResponse();
@@ -169,10 +169,60 @@ class AdminControllerTest extends TestCase
         $this->assertStringContainsString('attachment; filename="leads-', $response->getHeaderLine('Content-Disposition'));
         
         $body = (string)$response->getBody();
-        // Updated for UTM tracking params being enabled by default
-        $this->assertStringContainsString('Name,E-mail,Source,Medium,Campaign,Term,Content,Date', $body);
+        // Updated for Status and Notes
+        $this->assertStringContainsString('Name,E-mail,Source,Medium,Campaign,Term,Content,Status,Notes,Date', $body);
         $this->assertStringContainsString('John Doe', $body);
         $this->assertStringContainsString('john@example.com', $body);
+        $this->assertStringContainsString('new', $body);
+        $this->assertStringContainsString('Some note', $body);
         $this->assertStringContainsString('2023-01-01 12:00:00', $body);
+    }
+
+    public function test_update_status(): void
+    {
+        $controller = new AdminController($this->config, $this->db);
+        $pdo = $this->db->getConnection();
+        
+        // Add a lead
+        $data = json_encode(['name' => 'John Doe']);
+        $pdo->prepare("INSERT INTO leads (data) VALUES (?)")->execute([$data]);
+        $id = $pdo->lastInsertId();
+
+        $request = (new RequestFactory())->createRequest('POST', "/admin/leads/$id/status");
+        $request = $request->withParsedBody(['status' => 'qualified']);
+        $response = (new ResponseFactory())->createResponse();
+
+        $response = $controller->updateStatus($request, $response, ['id' => (string)$id]);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertStringContainsString('"success":true', (string)$response->getBody());
+
+        // Verify in DB
+        $status = $pdo->query("SELECT status FROM leads WHERE id = $id")->fetchColumn();
+        $this->assertEquals('qualified', $status);
+    }
+
+    public function test_update_notes(): void
+    {
+        $controller = new AdminController($this->config, $this->db);
+        $pdo = $this->db->getConnection();
+        
+        // Add a lead
+        $data = json_encode(['name' => 'John Doe']);
+        $pdo->prepare("INSERT INTO leads (data) VALUES (?)")->execute([$data]);
+        $id = $pdo->lastInsertId();
+
+        $request = (new RequestFactory())->createRequest('POST', "/admin/leads/$id/notes");
+        $request = $request->withParsedBody(['notes' => 'Handled via phone']);
+        $response = (new ResponseFactory())->createResponse();
+
+        $response = $controller->updateNotes($request, $response, ['id' => (string)$id]);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertStringContainsString('"success":true', (string)$response->getBody());
+
+        // Verify in DB
+        $notes = $pdo->query("SELECT notes FROM leads WHERE id = $id")->fetchColumn();
+        $this->assertEquals('Handled via phone', $notes);
     }
 }

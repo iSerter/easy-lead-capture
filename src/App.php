@@ -78,6 +78,8 @@ class App
         $this->slimApp->group('/admin', function ($group) use ($adminController) {
             $group->get('', [$adminController, 'index']);
             $group->get('/export', [$adminController, 'export']);
+            $group->post('/leads/{id}/status', [$adminController, 'updateStatus']);
+            $group->post('/leads/{id}/notes', [$adminController, 'updateNotes']);
         })->add($adminAuthMiddleware);
     }
 }

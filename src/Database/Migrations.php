@@ -23,6 +23,17 @@ class Migrations
 
         $pdo->exec("CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at)");
 
+        // Add status and notes columns to leads table if they don't exist
+        $columns = $pdo->query("PRAGMA table_info(leads)")->fetchAll(PDO::FETCH_ASSOC);
+        $columnNames = array_column($columns, 'name');
+
+        if (!in_array('status', $columnNames)) {
+            $pdo->exec("ALTER TABLE leads ADD COLUMN status TEXT DEFAULT 'new'");
+        }
+        if (!in_array('notes', $columnNames)) {
+            $pdo->exec("ALTER TABLE leads ADD COLUMN notes TEXT DEFAULT NULL");
+        }
+
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS admin_sessions (
                 token TEXT PRIMARY KEY,

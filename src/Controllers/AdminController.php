@@ -134,6 +134,7 @@ class AdminController
         $page = (int)($queryParams['page'] ?? 1);
         $from = $queryParams['from'] ?? null;
         $to = $queryParams['to'] ?? null;
+        $status = $queryParams['status'] ?? null;
         $perPage = 25;
         $offset = ($page - 1) * $perPage;
 
@@ -146,6 +147,10 @@ class AdminController
         if ($to) {
             $where[] = "created_at <= :to";
             $params[':to'] = $to . ' 23:59:59';
+        }
+        if ($status) {
+            $where[] = "status = :status";
+            $params[':status'] = $status;
         }
 
         $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -184,6 +189,8 @@ class AdminController
             'totalLeads' => $totalLeads,
             'from' => $from,
             'to' => $to,
+            'status' => $status,
+            'statuses' => ['new', 'in_progress', 'contacted', 'qualified', 'junk'],
             'fields' => $this->config['form']['fields'],
             'source_tracking' => $this->config['source_tracking'],
         ];
@@ -202,6 +209,7 @@ class AdminController
         $queryParams = $request->getQueryParams();
         $from = $queryParams['from'] ?? null;
         $to = $queryParams['to'] ?? null;
+        $status = $queryParams['status'] ?? null;
 
         $where = [];
         $params = [];
@@ -212,6 +220,10 @@ class AdminController
         if ($to) {
             $where[] = "created_at <= :to";
             $params[':to'] = $to . ' 23:59:59';
+        }
+        if ($status) {
+            $where[] = "status = :status";
+            $params[':status'] = $status;
         }
 
         $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -249,6 +261,8 @@ class AdminController
             }
         }
 
+        $header[] = 'Status';
+        $header[] = 'Notes';
         $header[] = 'Date';
 
         $output = fopen('php://temp', 'r+');
@@ -272,6 +286,8 @@ class AdminController
                 }
             }
 
+            $csvRow[] = $row['status'];
+            $csvRow[] = $row['notes'];
             $csvRow[] = $row['created_at'];
             fputcsv($output, $csvRow);
         }
@@ -281,5 +297,37 @@ class AdminController
         fclose($output);
 
         return $response;
+    }
+
+    public function updateStatus(Request $request, Response $response, array $args): Response
+    {
+        $id = $args['id'];
+        $data = $request->getParsedBody();
+        $status = $data['status'] ?? '';
+        $validStatuses = ['new', 'in_progress', 'contacted', 'qualified', 'junk'];
+
+        if (!in_array($status, $validStatuses)) {
+            $response->getBody()->write(json_encode(['success' => false, 'error' => 'Invalid status']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        $stmt = $this->db->getConnection()->prepare("UPDATE leads SET status = :status WHERE id = :id");
+        $stmt->execute([':status' => $status, ':id' => $id]);
+
+        $response->getBody()->write(json_encode(['success' => true]));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function updateNotes(Request $request, Response $response, array $args): Response
+    {
+        $id = $args['id'];
+        $data = $request->getParsedBody();
+        $notes = trim($data['notes'] ?? '');
+
+        $stmt = $this->db->getConnection()->prepare("UPDATE leads SET notes = :notes WHERE id = :id");
+        $stmt->execute([':notes' => $notes, ':id' => $id]);
+
+        $response->getBody()->write(json_encode(['success' => true]));
+        return $response->withHeader('Content-Type', 'application/json');
     }
 }
