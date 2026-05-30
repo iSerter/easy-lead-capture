@@ -123,6 +123,33 @@ Visit `/lead-capture/admin` to view captured leads and export as CSV.
 - SQLite3 extension
 - Composer
 
+## Development & Releasing
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) and [Release Please](https://github.com/googleapis/release-please-action) to automate versioning and changelog generation.
+
+### Commit Message Format
+
+Each commit message should follow this structure:
+`<type>[optional scope]: <description>`
+
+| Type | Description | SemVer Impact |
+| :--- | :--- | :--- |
+| `fix` | A bug fix | patch |
+| `feat` | A new feature | minor |
+| `feat!` / `fix!` | Breaking change | major |
+| `chore`, `docs`, `test` | Internal changes | none |
+
+Example: `feat: add recaptcha v3 support`
+
+### Releasing
+
+1. Merge your changes to `main` using Conventional Commit messages.
+2. Release Please will automatically open or update a **Release PR** (e.g., `chore(main): release 1.0.0`).
+3. Merging the Release PR will:
+   - Tag the release (e.g., `v1.0.0`)
+   - Create a GitHub Release with the changelog
+   - Update `composer.json` and `CHANGELOG.md`
+
 ## License
 
 MIT
