@@ -89,13 +89,14 @@
                             <?php endif; ?>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geo</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         <?php if (empty($leads)): ?>
                             <tr>
-                                <td colspan="<?= count($fields) + ($source_tracking['enabled'] ? count($source_tracking['params']) : 0) + 4 ?>" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="<?= count($fields) + ($source_tracking['enabled'] ? count($source_tracking['params']) : 0) + 5 ?>" class="px-6 py-12 text-center text-gray-500">
                                     No leads found.
                                 </td>
                             </tr>
@@ -149,6 +150,24 @@
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                         <span id="note-text-<?= $lead['id'] ?>"><?= $lead['notes'] ? htmlspecialchars($lead['notes']) : 'Add Note' ?></span>
                                     </button>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <?php if (!empty($lead['ip_address']) && empty($lead['ip_country_code']) && empty($lead['ip_region']) && empty($lead['ip_city'])): ?>
+                                        <button onclick="locateGeo(<?= $lead['id'] ?>, this)" class="px-2 py-1 bg-white border border-gray-300 text-gray-700 rounded text-xs font-medium hover:bg-gray-50 transition-colors">
+                                            Locate
+                                        </button>
+                                    <?php elseif (!empty($lead['ip_country_code']) || !empty($lead['ip_region']) || !empty($lead['ip_city'])): ?>
+                                        <span class="text-xs text-gray-600">
+                                            <?= htmlspecialchars($lead['ip_country_code'] ?? '') ?>
+                                            <?= $lead['ip_region'] ? '— ' . htmlspecialchars($lead['ip_region']) : '' ?>
+                                            <?= $lead['ip_city'] ? ', ' . htmlspecialchars($lead['ip_city']) : '' ?>
+                                        </span>
+                                        <button onclick="locateGeo(<?= $lead['id'] ?>, this)" class="ml-1 text-gray-400 hover:text-gray-600" title="Refresh">
+                                            <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                        </button>
+                                    <?php else: ?>
+                                        <span class="text-xs text-gray-400">—</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <?= htmlspecialchars($lead['created_at']) ?>
@@ -318,6 +337,43 @@
             } catch (err) {
                 console.error(err);
                 alert('Network error');
+            }
+        }
+
+        async function locateGeo(id, btn) {
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                const response = await fetch('<?= $base_path ?>/admin/leads/' + id + '/geo', {
+                    method: 'POST',
+                });
+                const result = await response.json();
+                if (result.success) {
+                    const parts = [result.country_code];
+                    if (result.region) parts.push('— ' + result.region);
+                    if (result.city) parts.push(', ' + result.city);
+                    const geoText = document.createElement('span');
+                    geoText.className = 'text-xs text-gray-600';
+                    geoText.textContent = parts.join(' ');
+
+                    const refreshBtn = document.createElement('button');
+                    refreshBtn.className = 'ml-1 text-gray-400 hover:text-gray-600';
+                    refreshBtn.title = 'Refresh';
+                    refreshBtn.type = 'button';
+                    refreshBtn.onclick = () => locateGeo(id, refreshBtn);
+                    refreshBtn.innerHTML = '<svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+
+                    btn.replaceWith(geoText, refreshBtn);
+                    showToast('Location resolved');
+                } else {
+                    alert(result.error || 'Lookup failed');
+                    btn.disabled = false;
+                    btn.textContent = 'Locate';
+                }
+            } catch (err) {
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = 'Locate';
             }
         }
     </script>

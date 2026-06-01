@@ -68,7 +68,13 @@ class App
         $this->slimApp->get('/assets/styles.css', [new Controllers\EmbedController(), 'styles']);
 
         // Admin routes
-        $adminController = new Controllers\AdminController($config, $db);
+        $ipGeoConfig = $config['ip_geo'];
+        if ($ipGeoConfig['provider'] === 'ipapico') {
+            $ipGeoProvider = new IpGeo\IpApiCoProvider($ipGeoConfig['ipapico_api_key']);
+        } else {
+            $ipGeoProvider = new IpGeo\IpSageProvider($ipGeoConfig['ipsage_endpoint']);
+        }
+        $adminController = new Controllers\AdminController($config, $db, $ipGeoProvider);
         $adminAuthMiddleware = new Middleware\AdminAuthMiddleware($db, $config['base_path']);
 
         $this->slimApp->get('/admin/login', [$adminController, 'loginForm']);
@@ -80,6 +86,7 @@ class App
             $group->get('/export', [$adminController, 'export']);
             $group->post('/leads/{id}/status', [$adminController, 'updateStatus']);
             $group->post('/leads/{id}/notes', [$adminController, 'updateNotes']);
+            $group->post('/leads/{id}/geo', [$adminController, 'lookupGeo']);
         })->add($adminAuthMiddleware);
     }
 }

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Iserter\EasyLeadCapture\Controllers;
 
 use Iserter\EasyLeadCapture\Database\Database;
+use Iserter\EasyLeadCapture\IpGeo\IpApiCoProvider;
+use Iserter\EasyLeadCapture\IpGeo\IpGeoProvider;
+use Iserter\EasyLeadCapture\IpGeo\IpSageProvider;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -12,11 +15,13 @@ class AdminController
 {
     private array $config;
     private Database $db;
+    private IpGeoProvider $ipGeoProvider;
 
-    public function __construct(array $config, Database $db)
+    public function __construct(array $config, Database $db, IpGeoProvider $ipGeoProvider)
     {
         $this->config = $config;
         $this->db = $db;
+        $this->ipGeoProvider = $ipGeoProvider;
     }
 
     public function loginForm(Request $request, Response $response): Response
@@ -263,6 +268,9 @@ class AdminController
 
         $header[] = 'Status';
         $header[] = 'Notes';
+        $header[] = 'Country Code';
+        $header[] = 'Region';
+        $header[] = 'City';
         $header[] = 'Date';
 
         $output = fopen('php://temp', 'r+');
@@ -288,6 +296,9 @@ class AdminController
 
             $csvRow[] = $row['status'];
             $csvRow[] = $row['notes'];
+            $csvRow[] = $row['ip_country_code'] ?? '';
+            $csvRow[] = $row['ip_region'] ?? '';
+            $csvRow[] = $row['ip_city'] ?? '';
             $csvRow[] = $row['created_at'];
             fputcsv($output, $csvRow);
         }
@@ -328,6 +339,61 @@ class AdminController
         $stmt->execute([':notes' => $notes, ':id' => $id]);
 
         $response->getBody()->write(json_encode(['success' => true]));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function lookupGeo(Request $request, Response $response, array $args): Response
+    {
+        $id = $args['id'];
+
+        $stmt = $this->db->getConnection()->prepare("SELECT id, ip_address FROM leads WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        $lead = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$lead) {
+            $response->getBody()->write(json_encode(['success' => false, 'error' => 'Lead not found']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+        }
+
+        if (empty($lead['ip_address'])) {
+            $response->getBody()->write(json_encode(['success' => false, 'error' => 'No IP address']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        $queryParams = $request->getQueryParams();
+        $providerOverride = $queryParams['provider'] ?? null;
+
+        $provider = $this->ipGeoProvider;
+        $ipGeoConfig = $this->config['ip_geo'] ?? [];
+        if ($providerOverride === 'ipapico') {
+            $provider = new IpApiCoProvider($ipGeoConfig['ipapico_api_key'] ?? null);
+        } elseif ($providerOverride === 'ipsage') {
+            $provider = new IpSageProvider($ipGeoConfig['ipsage_endpoint'] ?? 'http://127.0.0.1:8040');
+        }
+
+        $geo = $provider->lookup($lead['ip_address']);
+
+        if ($geo === null) {
+            $response->getBody()->write(json_encode(['success' => false, 'error' => 'Geolocation failed']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(502);
+        }
+
+        $updateStmt = $this->db->getConnection()->prepare("
+            UPDATE leads SET ip_country_code = :country_code, ip_region = :region, ip_city = :city WHERE id = :id
+        ");
+        $updateStmt->execute([
+            ':country_code' => $geo['country_code'],
+            ':region' => $geo['region'],
+            ':city' => $geo['city'],
+            ':id' => $id,
+        ]);
+
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'country_code' => $geo['country_code'],
+            'region' => $geo['region'],
+            'city' => $geo['city'],
+        ]));
         return $response->withHeader('Content-Type', 'application/json');
     }
 }
