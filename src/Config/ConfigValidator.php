@@ -69,6 +69,11 @@ class ConfigValidator
                 'utm_content',
             ],
         ],
+        'ip_geo' => [
+            'provider' => 'ipsage',
+            'ipsage_endpoint' => 'http://127.0.0.1:8040',
+            'ipapico_api_key' => null,
+        ],
     ];
 
     public static function validate(array $config): array

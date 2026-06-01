@@ -33,6 +33,15 @@ class Migrations
         if (!in_array('notes', $columnNames)) {
             $pdo->exec("ALTER TABLE leads ADD COLUMN notes TEXT DEFAULT NULL");
         }
+        if (!in_array('ip_country_code', $columnNames)) {
+            $pdo->exec("ALTER TABLE leads ADD COLUMN ip_country_code TEXT DEFAULT NULL");
+        }
+        if (!in_array('ip_region', $columnNames)) {
+            $pdo->exec("ALTER TABLE leads ADD COLUMN ip_region TEXT DEFAULT NULL");
+        }
+        if (!in_array('ip_city', $columnNames)) {
+            $pdo->exec("ALTER TABLE leads ADD COLUMN ip_city TEXT DEFAULT NULL");
+        }
 
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS admin_sessions (

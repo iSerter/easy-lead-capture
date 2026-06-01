@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Iserter\EasyLeadCapture\Config\ConfigValidator;
 use Iserter\EasyLeadCapture\Database\Database;
 use Iserter\EasyLeadCapture\Controllers\AdminController;
+use Iserter\EasyLeadCapture\IpGeo\IpGeoProvider;
 use Slim\Psr7\Factory\RequestFactory;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Psr7\Factory\StreamFactory;
@@ -17,6 +18,7 @@ class AdminControllerTest extends TestCase
     private string $tempDb;
     private array $config;
     private Database $db;
+    private IpGeoProvider $mockGeoProvider;
 
     protected function setUp(): void
     {
@@ -26,6 +28,9 @@ class AdminControllerTest extends TestCase
             'base_path' => '/lead-capture'
         ]);
         $this->db = new Database($this->tempDb);
+        $this->mockGeoProvider = new class implements IpGeoProvider {
+            public function lookup(string $ip): ?array { return null; }
+        };
     }
 
     protected function tearDown(): void
@@ -39,7 +44,7 @@ class AdminControllerTest extends TestCase
 
     public function test_login_form_renders(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         $request = (new RequestFactory())->createRequest('GET', '/admin/login');
         $response = (new ResponseFactory())->createResponse();
 
@@ -51,7 +56,7 @@ class AdminControllerTest extends TestCase
 
     public function test_successful_login(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         $request = (new RequestFactory())->createRequest('POST', '/admin/login');
         $request = $request->withParsedBody(['password' => 'secret']);
         $response = (new ResponseFactory())->createResponse();
@@ -70,7 +75,7 @@ class AdminControllerTest extends TestCase
 
     public function test_failed_login(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         $request = (new RequestFactory())->createRequest('POST', '/admin/login');
         $request = $request->withParsedBody(['password' => 'wrong']);
         $response = (new ResponseFactory())->createResponse();
@@ -88,7 +93,7 @@ class AdminControllerTest extends TestCase
 
     public function test_login_rate_limit(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         $pdo = $this->db->getConnection();
         
         // Add 5 failed attempts
@@ -108,7 +113,7 @@ class AdminControllerTest extends TestCase
 
     public function test_logout(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         
         // Create session
         $token = 'test_token';
@@ -131,7 +136,7 @@ class AdminControllerTest extends TestCase
 
     public function test_dashboard_index(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         $pdo = $this->db->getConnection();
         
         // Add a lead
@@ -152,7 +157,7 @@ class AdminControllerTest extends TestCase
 
     public function test_export_csv(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         $pdo = $this->db->getConnection();
         
         // Add a lead
@@ -169,8 +174,10 @@ class AdminControllerTest extends TestCase
         $this->assertStringContainsString('attachment; filename="leads-', $response->getHeaderLine('Content-Disposition'));
         
         $body = (string)$response->getBody();
-        // Updated for Status and Notes
-        $this->assertStringContainsString('Name,E-mail,Source,Medium,Campaign,Term,Content,Status,Notes,Date', $body);
+        // Updated for Status, Notes, and Geo columns
+        $this->assertStringContainsString('"Country Code"', $body);
+        $this->assertStringContainsString('Region', $body);
+        $this->assertStringContainsString('City', $body);
         $this->assertStringContainsString('John Doe', $body);
         $this->assertStringContainsString('john@example.com', $body);
         $this->assertStringContainsString('new', $body);
@@ -180,7 +187,7 @@ class AdminControllerTest extends TestCase
 
     public function test_update_status(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         $pdo = $this->db->getConnection();
         
         // Add a lead
@@ -204,7 +211,7 @@ class AdminControllerTest extends TestCase
 
     public function test_update_notes(): void
     {
-        $controller = new AdminController($this->config, $this->db);
+        $controller = new AdminController($this->config, $this->db, $this->mockGeoProvider);
         $pdo = $this->db->getConnection();
         
         // Add a lead
