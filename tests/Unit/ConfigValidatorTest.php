@@ -29,6 +29,8 @@ class ConfigValidatorTest extends TestCase
         $this->assertNotEmpty($config['database']['path']);
         $this->assertEquals('Thank you!', $config['on_submit']['success_headline']);
         $this->assertEquals('#4F46E5', $config['form']['colors']['primary']);
+        $this->assertFalse($config['confirmation_email']['enabled']);
+        $this->assertEquals('Thank you for joining our waitlist!', $config['confirmation_email']['subject']);
     }
 
     public function test_it_validates_base_path(): void
@@ -190,5 +192,60 @@ class ConfigValidatorTest extends TestCase
         $this->assertArrayHasKey('name', $config['form']['fields']);
         $this->assertEquals('Work Email', $config['form']['fields']['email']['label']);
         $this->assertEquals('textarea', $config['form']['fields']['message']['field_type']);
+    }
+
+    public function test_it_validates_confirmation_email_enabled_type(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('confirmation_email.enabled');
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'confirmation_email' => ['enabled' => 'yes'],
+        ]);
+    }
+
+    public function test_it_validates_confirmation_email_subject_when_enabled(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('confirmation_email.subject');
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'confirmation_email' => [
+                'enabled' => true,
+                'subject' => '',
+            ],
+        ]);
+    }
+
+    public function test_it_validates_confirmation_email_from_address(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('confirmation_email.from_address');
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'confirmation_email' => [
+                'from_address' => 'not-an-email',
+            ],
+        ]);
+    }
+
+    public function test_confirmation_email_can_be_enabled_without_admin_email(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'confirmation_email' => [
+                'enabled' => true,
+                'subject' => 'Thanks',
+                'from_address' => 'hello@example.com',
+                'from_name' => 'Example',
+            ],
+        ]);
+
+        $this->assertTrue($config['confirmation_email']['enabled']);
+        $this->assertNull($config['admin']['email']);
+        $this->assertEquals('hello@example.com', $config['confirmation_email']['from_address']);
     }
 }

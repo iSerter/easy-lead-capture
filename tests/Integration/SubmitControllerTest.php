@@ -30,6 +30,8 @@ class SubmitControllerTest extends TestCase
     {
         if (file_exists($this->tempDb)) {
             @unlink($this->tempDb);
+            @unlink($this->tempDb . '-shm');
+            @unlink($this->tempDb . '-wal');
         }
     }
 
@@ -312,5 +314,94 @@ class SubmitControllerTest extends TestCase
 
         $this->assertEquals('203.0.113.50', $lead['ip_address']);
         $this->assertEquals('TestBrowser/1.0', $lead['user_agent']);
+    }
+
+    public function test_it_defers_confirmation_email_when_enabled_and_email_is_present(): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['csrf_token'] = 'test_token';
+
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'confirmation_email' => [
+                'enabled' => true,
+                'subject' => 'Thanks',
+            ],
+        ]);
+
+        $deferred = new DeferredTaskRunner();
+        $controller = new SubmitController($config, $this->db, $deferred);
+
+        $request = (new RequestFactory())->createRequest('POST', '/submit');
+        $request = $request->withBody((new StreamFactory())->createStream(json_encode([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            '_csrf_token' => 'test_token',
+        ])));
+        $request = $request->withHeader('Content-Type', 'application/json');
+
+        $response = $controller->handle($request, (new ResponseFactory())->createResponse());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertCount(2, $this->getDeferredTasks($deferred));
+    }
+
+    public function test_it_does_not_defer_confirmation_email_without_email_field(): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['csrf_token'] = 'test_token';
+
+        $previousErrorLog = ini_get('error_log');
+        $tempErrorLog = tempnam(sys_get_temp_dir(), 'elc-log-') ?: sys_get_temp_dir() . '/elc-log-test.log';
+        ini_set('error_log', $tempErrorLog);
+
+        try {
+            $config = ConfigValidator::validate([
+                'admin' => ['password' => 'secret'],
+                'form' => [
+                    'fields' => [
+                        'email' => ['label' => 'Email', 'required' => false, 'field_type' => 'text'],
+                    ],
+                ],
+                'confirmation_email' => [
+                    'enabled' => true,
+                    'subject' => 'Thanks',
+                ],
+            ]);
+        } finally {
+            ini_set('error_log', $previousErrorLog === false ? '' : $previousErrorLog);
+            if (file_exists($tempErrorLog)) {
+                unlink($tempErrorLog);
+            }
+        }
+
+        $deferred = new DeferredTaskRunner();
+        $controller = new SubmitController($config, $this->db, $deferred);
+
+        $request = (new RequestFactory())->createRequest('POST', '/submit');
+        $request = $request->withBody((new StreamFactory())->createStream(json_encode([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            '_csrf_token' => 'test_token',
+        ])));
+        $request = $request->withHeader('Content-Type', 'application/json');
+
+        $response = $controller->handle($request, (new ResponseFactory())->createResponse());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertCount(1, $this->getDeferredTasks($deferred));
+    }
+
+    private function getDeferredTasks(DeferredTaskRunner $deferred): array
+    {
+        $reflection = new \ReflectionClass($deferred);
+        $property = $reflection->getProperty('tasks');
+        $property->setAccessible(true);
+
+        return $property->getValue($deferred);
     }
 }

@@ -275,8 +275,9 @@ POST /submit {fields, captchaToken}
         ◄──────────────────────────
 Transition to success CTA
                                     6. Flush output buffers, close client connection
-                                    7. Send email notification (deferred)
-                                    8. POST lead data to ping_api endpoint (deferred)
+                                    7. Send admin email notification (deferred)
+                                    8. Send user confirmation email, if enabled (deferred)
+                                    9. POST lead data to ping_api endpoint (deferred)
 ```
 
 ### Deferred Email Sending
@@ -344,7 +345,7 @@ This pattern is proven in production across PHP-FPM, Apache mod_php, LiteSpeed, 
 
 ### Email Notification
 
-Sent via Symfony Mailer. Template is a simple, clean HTML email:
+Admin notifications are sent via Symfony Mailer. Template is a simple, clean HTML email:
 
 - **Subject:** `New lead from [name/email]`
 - **Body:** Lists all submitted fields in a formatted table.
@@ -352,6 +353,27 @@ Sent via Symfony Mailer. Template is a simple, clean HTML email:
 - **From:** `mail.from` from config.
 
 If no `admin.email` is configured, email sending is skipped silently (logged if logging is added later).
+
+### User Confirmation Email
+
+Optionally sends a thank-you email to the lead after the form submission response has been delivered. The recipient is resolved from the first configured form field with `field_type === 'email'`; if the form has no email field or the submitted value is missing, no confirmation email is attempted.
+
+```php
+'confirmation_email' => [
+    'enabled' => false,
+    'subject' => 'Thank you for joining our waitlist!',
+    'body_template' => null,
+    'from_address' => null,
+    'from_name' => null,
+],
+```
+
+- `enabled`: defaults to `false`.
+- `subject`: required non-empty string when enabled.
+- `body_template`: `null` uses `src/Views/emails/confirmation.php`; a string is used directly as the HTML body.
+- `from_address` / `from_name`: optional overrides; fall back to `mail.from_address` and `mail.from_name`.
+
+Custom `body_template` values support `{name}`, `{email}`, and `{fields}` placeholders. `{fields}` renders the same HTML table format used by the admin notification. Transport failures are caught silently because the lead is already stored.
 
 ### API Ping (Webhook)
 
@@ -422,7 +444,9 @@ Uses PHP's `curl` extension (universally available). Registered as a deferred ta
 1. Validates required keys exist (`admin.password`).
 2. Sets defaults for optional keys (colors, captcha disabled, etc.).
 3. Validates field types and structure.
-4. Throws a clear `InvalidArgumentException` with a human-readable message if config is malformed.
+4. Validates email transport settings when admin notification or confirmation email sending is configured.
+5. Validates `confirmation_email` keys and logs a warning, without failing boot, if confirmation email is enabled without an email form field.
+6. Throws a clear `InvalidArgumentException` with a human-readable message if config is malformed.
 
 ---
 
@@ -477,6 +501,7 @@ Detailed task specs are in [`tasks/`](tasks/).
 - [x] [10 — CSRF & Security Headers](tasks/10-csrf-and-security-headers.md): CSRF token flow, CSP/XFO/security headers
 - [x] [11 — Email Notifications](tasks/11-email-notifications.md): Symfony Mailer with SMTP/Sendmail/SES, admin notification on new lead
 - [x] [15 — API Ping](tasks/15-api-ping.md): POST lead data to external API endpoint after submission (deferred)
+- [x] [21 — User Confirmation Email](tasks/21-user-confirmation-email.md): Configurable thank-you email to the submitted lead email address (deferred)
 
 ### Phase 3 — Admin Panel
 - [x] [12 — Admin Authentication](tasks/12-admin-auth.md): Password login, session tokens in SQLite, rate limiting
