@@ -59,6 +59,13 @@ class ConfigValidator
             'from_address' => 'noreply@example.com',
             'from_name' => 'Easy Lead Capture',
         ],
+        'confirmation_email' => [
+            'enabled' => false,
+            'subject' => 'Thank you for joining our waitlist!',
+            'body_template' => null,
+            'from_address' => null,
+            'from_name' => null,
+        ],
         'source_tracking' => [
             'enabled' => true,
             'params' => [
@@ -119,11 +126,25 @@ class ConfigValidator
             }
         }
 
-        // 5. Validate mail if admin.email is set
-        if (!empty($mergedConfig['admin']['email'])) {
+        if (!is_bool($mergedConfig['confirmation_email']['enabled'])) {
+            throw new InvalidArgumentException("Config error: 'confirmation_email.enabled' must be a boolean.");
+        }
+
+        $confirmationEnabled = $mergedConfig['confirmation_email']['enabled'];
+
+        // 5. Validate mail if email sending is configured
+        if (!empty($mergedConfig['admin']['email']) || $confirmationEnabled) {
             $validMailers = ['smtp', 'sendmail', 'ses'];
             if (!in_array($mergedConfig['mail']['mailer'], $validMailers, true)) {
                 throw new InvalidArgumentException("Config error: 'mail.mailer' must be one of: " . implode(', ', $validMailers));
+            }
+
+            if (empty($mergedConfig['mail']['from_address']) || !filter_var($mergedConfig['mail']['from_address'], FILTER_VALIDATE_EMAIL)) {
+                throw new InvalidArgumentException("Config error: 'mail.from_address' must be a valid email address.");
+            }
+
+            if (!is_string($mergedConfig['mail']['from_name'])) {
+                throw new InvalidArgumentException("Config error: 'mail.from_name' must be a string.");
             }
 
             if ($mergedConfig['mail']['mailer'] === 'smtp' || $mergedConfig['mail']['mailer'] === 'ses') {
@@ -136,7 +157,44 @@ class ConfigValidator
             }
         }
 
-        // 6. Validate ping_api
+        // 6. Validate confirmation_email
+        if (
+            $mergedConfig['confirmation_email']['body_template'] !== null
+            && !is_string($mergedConfig['confirmation_email']['body_template'])
+        ) {
+            throw new InvalidArgumentException("Config error: 'confirmation_email.body_template' must be a string or null.");
+        }
+
+        if (
+            $mergedConfig['confirmation_email']['from_name'] !== null
+            && !is_string($mergedConfig['confirmation_email']['from_name'])
+        ) {
+            throw new InvalidArgumentException("Config error: 'confirmation_email.from_name' must be a string or null.");
+        }
+
+        if ($mergedConfig['confirmation_email']['from_address'] !== null && !filter_var($mergedConfig['confirmation_email']['from_address'], FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException("Config error: 'confirmation_email.from_address' must be a valid email address.");
+        }
+
+        if ($mergedConfig['confirmation_email']['enabled']) {
+            if (empty($mergedConfig['confirmation_email']['subject']) || !is_string($mergedConfig['confirmation_email']['subject'])) {
+                throw new InvalidArgumentException("Config error: 'confirmation_email.subject' must be a non-empty string when confirmation email is enabled.");
+            }
+
+            $hasEmailField = false;
+            foreach ($mergedConfig['form']['fields'] as $field) {
+                if (($field['field_type'] ?? 'text') === 'email') {
+                    $hasEmailField = true;
+                    break;
+                }
+            }
+
+            if (!$hasEmailField) {
+                error_log("Config warning: 'confirmation_email.enabled' is true, but no email field exists in 'form.fields'. Confirmation email will be skipped.");
+            }
+        }
+
+        // 7. Validate ping_api
         if ($mergedConfig['on_submit']['ping_api']['enabled']) {
             $apiConfig = $mergedConfig['on_submit']['ping_api'];
             if (empty($apiConfig['api_endpoint']) || !filter_var($apiConfig['api_endpoint'], FILTER_VALIDATE_URL)) {
@@ -147,7 +205,7 @@ class ConfigValidator
             }
         }
 
-        // 7. Validate source_tracking
+        // 8. Validate source_tracking
         if ($mergedConfig['source_tracking']['enabled']) {
             if (!is_array($mergedConfig['source_tracking']['params']) || empty($mergedConfig['source_tracking']['params'])) {
                 throw new InvalidArgumentException("Config error: 'source_tracking.params' must be a non-empty array when enabled.");

@@ -2,6 +2,8 @@
 
 `easy-lead-capture` can automatically notify you via email whenever a new lead is captured.
 
+For thank-you emails sent to the person who submits the form, see [Confirmation Emails Guide](confirmation-emails.md).
+
 ## Setup
 
 To enable notifications, you must provide an `admin.email` and configure the `mail` settings.

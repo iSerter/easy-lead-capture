@@ -66,8 +66,17 @@ Each field is defined by an ID and an array of options:
 - `email`: `string` (Recipient for notifications)
 
 ### Mail (`mail`)
-Used when `admin.email` is set.
+Used when `admin.email` is set or `confirmation_email.enabled` is `true`.
 - `mailer`: `smtp`, `sendmail`, or `ses`.
 - `from_address`: `string`
 - `from_name`: `string`
 - `host`, `port`, `username`, `password`, `encryption`: SMTP/SES specific settings.
+
+### Confirmation Email (`confirmation_email`)
+- `enabled`: `boolean` (default: `false`)
+- `subject`: `string`
+- `body_template`: `string|null`
+- `from_address`: `string|null`
+- `from_name`: `string|null`
+
+See [Confirmation Emails Guide](confirmation-emails.md) for setup, placeholders, and delivery behavior.

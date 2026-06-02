@@ -7,14 +7,13 @@ namespace Iserter\EasyLeadCapture\Mail;
 use Symfony\Component\Mailer\Mailer as SymfonyMailer;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mailer\Transport;
-use Symfony\Component\Mailer\Transport\Dsn;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 
 class MailerFactory
 {
     public static function create(array $config): ?MailerInterface
     {
-        if (empty($config['admin']['email'])) {
+        if (empty($config['admin']['email']) && empty($config['confirmation_email']['enabled'])) {
             return null;
         }
 

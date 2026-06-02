@@ -136,6 +136,10 @@ class SubmitController
             // Send notification email (deferred)
             $this->deferred->defer(fn() => $this->mailer->sendLeadNotification($validatedData, $this->config));
 
+            if (($this->config['confirmation_email']['enabled'] ?? false) && $this->hasLeadEmailAddress($validatedData)) {
+                $this->deferred->defer(fn() => $this->mailer->sendConfirmationEmail($validatedData, $this->config));
+            }
+
             // Ping API (deferred)
             if ($this->config['on_submit']['ping_api']['enabled']) {
                 $pingConfig = $this->config['on_submit']['ping_api'];
@@ -176,5 +180,21 @@ class SubmitController
 
         $serverParams = $request->getServerParams();
         return $serverParams['REMOTE_ADDR'] ?? '0.0.0.0';
+    }
+
+    private function hasLeadEmailAddress(array $leadData): bool
+    {
+        foreach ($this->config['form']['fields'] as $id => $field) {
+            if (($field['field_type'] ?? 'text') !== 'email') {
+                continue;
+            }
+
+            $value = $leadData[$id] ?? null;
+            if (is_string($value) && filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

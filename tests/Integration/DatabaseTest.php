@@ -20,6 +20,8 @@ class DatabaseTest extends TestCase
     {
         if (file_exists($this->tempDb)) {
             @unlink($this->tempDb);
+            @unlink($this->tempDb . '-shm');
+            @unlink($this->tempDb . '-wal');
         }
     }
 

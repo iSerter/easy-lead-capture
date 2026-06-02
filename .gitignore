@@ -1,3 +1,7 @@
 /vendor/
 /node_modules/
 /data/
+/.phpunit.cache/
+/tests/Integration/*.db
+/tests/Integration/*.db-shm
+/tests/Integration/*.db-wal
