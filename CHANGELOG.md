@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0](https://github.com/iSerter/easy-lead-capture/compare/v0.1.0...v0.2.0) (2026-06-02)
+
+
+### Features
+
+* Add IP geolocation functionality to leads management ([615a37c](https://github.com/iSerter/easy-lead-capture/commit/615a37c2e36ed46b1bec3dff83acf49e2a6bff9f))
+* Add IP geolocation functionality to leads management ([2b26887](https://github.com/iSerter/easy-lead-capture/commit/2b26887562c198c5b798d0c04db7980a8bf163da))
+* Implement user confirmation email functionality ([4cf06ef](https://github.com/iSerter/easy-lead-capture/commit/4cf06efcaf343720c3f86e4359726ffd3a5b9286))
+* Implement user confirmation email functionality ([a488d78](https://github.com/iSerter/easy-lead-capture/commit/a488d787519eb5f864adb30c6cc0341ff3a78483))
+
 ## 0.1.0 (2026-05-30)
 
 
