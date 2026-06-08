@@ -14,6 +14,17 @@ A lightweight, embeddable lead capture system for PHP. Beautiful forms, SQLite s
 - **Admin panel** — view leads, filter by date, export CSV
 - **Lightweight** — <20KB iframe payload, no frontend framework
 
+## Screenshots
+
+### Lead Form
+![Example Basic Lead Form](screenshots/example-basic-lead-form.jpg)
+
+### Success Message
+![Success Message with Social CTAs](screenshots/success-message-with-social-CTAs.jpg)
+
+### Admin Panel
+![Admin Panel](screenshots/admin-panel.jpg)
+
 ## Quick Start
 
 ### 1. Install
