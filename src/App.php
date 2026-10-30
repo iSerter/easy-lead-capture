@@ -87,6 +87,7 @@ class App
             $group->post('/leads/{id}/status', [$adminController, 'updateStatus']);
             $group->post('/leads/{id}/notes', [$adminController, 'updateNotes']);
             $group->post('/leads/{id}/geo', [$adminController, 'lookupGeo']);
+            $group->post('/leads/{id}/consent/withdraw', [$adminController, 'withdrawConsent']);
         })->add($adminAuthMiddleware);
     }
 }

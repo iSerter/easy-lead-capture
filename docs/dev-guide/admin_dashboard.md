@@ -15,13 +15,15 @@ By default, the dashboard is located at `{base_path}/admin`.
 - **Paginated View**: Leads are displayed 25 per page, sorted by newest first.
 - **Dynamic Columns**: The table automatically adapts to display the fields you have defined in your form configuration.
 - **Source Tracking**: If enabled, UTM parameters like Source, Medium, and Campaign are shown in dedicated columns.
+- **Marketing Consent**: Each lead shows **Opted in**, **No**, **Withdrawn**, or `—` (captured before consent tracking existed). To record a lead's request to unsubscribe, click **Opted in** and confirm. See the [Email Consent guide](consent.md).
 
 ### Filtering
 - **Date Range**: Filter leads by their submission date using the "From" and "To" date pickers.
+- **Marketing Consent**: Show only leads that are opted in, not opted in (declined or withdrawn), or unknown.
 
 ### CSV Export
 - Click the **"Export CSV"** button to download your currently filtered view.
-- The CSV includes all form data, tracking parameters, and the submission timestamp.
+- The CSV includes all form data, tracking parameters, consent columns (`Marketing Consent`, `Consent Text`, `Consent Date`, `Consent Withdrawn At`), and the submission timestamp.
 - Encoded in UTF-8 with a BOM for maximum compatibility with Excel.
 
 ## Security

@@ -72,6 +72,31 @@ class Mailer
                 $html .= '</tbody></table>';
             }
 
+            // Consent
+            $consentData = $leadData['_consent'] ?? [];
+            if (!empty($consentData)) {
+                $consentRows = [];
+                if (array_key_exists('marketing', $consentData)) {
+                    $consentRows['Marketing emails'] = $consentData['marketing'] ? 'Yes' : 'No';
+                }
+                if (array_key_exists('terms', $consentData)) {
+                    $consentRows['Terms accepted'] = $consentData['terms'] ? 'Yes' : 'No';
+                }
+                $consentRows['Captured at'] = (string)($consentData['captured_at'] ?? '');
+
+                $html .= '<h3 style="margin-top: 20px;">Consent</h3>';
+                $html .= '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">';
+                $html .= '<tbody>';
+                foreach ($consentRows as $label => $value) {
+                    $html .= sprintf(
+                        '<tr><td style="font-weight: bold; width: 30%%;">%s</td><td>%s</td></tr>',
+                        htmlspecialchars($label),
+                        htmlspecialchars($value)
+                    );
+                }
+                $html .= '</tbody></table>';
+            }
+
             $email->html($html);
 
             $this->mailer->send($email);

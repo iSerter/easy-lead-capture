@@ -13,6 +13,8 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class AdminController
 {
+    private const CONSENT_FILTERS = ['yes' => 'Opted in', 'no' => 'Not opted in', 'unknown' => 'Unknown'];
+
     private array $config;
     private Database $db;
     private IpGeoProvider $ipGeoProvider;
@@ -140,25 +142,11 @@ class AdminController
         $from = $queryParams['from'] ?? null;
         $to = $queryParams['to'] ?? null;
         $status = $queryParams['status'] ?? null;
+        $consent = self::normalizeConsentFilter($queryParams['consent'] ?? null);
         $perPage = 25;
         $offset = ($page - 1) * $perPage;
 
-        $where = [];
-        $params = [];
-        if ($from) {
-            $where[] = "created_at >= :from";
-            $params[':from'] = $from . ' 00:00:00';
-        }
-        if ($to) {
-            $where[] = "created_at <= :to";
-            $params[':to'] = $to . ' 23:59:59';
-        }
-        if ($status) {
-            $where[] = "status = :status";
-            $params[':status'] = $status;
-        }
-
-        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        [$whereSql, $params] = $this->buildFilters($queryParams);
 
         // Count total
         $countStmt = $this->db->getConnection()->prepare("SELECT COUNT(*) FROM leads $whereSql");
@@ -182,7 +170,16 @@ class AdminController
 
         foreach ($leads as &$lead) {
             $lead['data'] = json_decode($lead['data'], true);
+            $lead['consent_state'] = self::marketingConsentState($lead['data'] ?? []);
         }
+        unset($lead);
+
+        // Decided across all leads (not just this page) so the column and filter stay stable while paging
+        $showConsent = $this->config['consent']['marketing']['enabled']
+            || $consent !== null
+            || $this->db->getConnection()
+                ->query("SELECT 1 FROM leads WHERE json_extract(data, '$._consent.marketing') IS NOT NULL LIMIT 1")
+                ->fetchColumn() !== false;
 
         $viewData = [
             'title' => 'Admin Dashboard',
@@ -196,6 +193,9 @@ class AdminController
             'to' => $to,
             'status' => $status,
             'statuses' => ['new', 'in_progress', 'contacted', 'qualified', 'junk'],
+            'consent' => $consent,
+            'showConsent' => $showConsent,
+            'consentFilters' => self::CONSENT_FILTERS,
             'fields' => $this->config['form']['fields'],
             'source_tracking' => $this->config['source_tracking'],
         ];
@@ -211,27 +211,7 @@ class AdminController
 
     public function export(Request $request, Response $response): Response
     {
-        $queryParams = $request->getQueryParams();
-        $from = $queryParams['from'] ?? null;
-        $to = $queryParams['to'] ?? null;
-        $status = $queryParams['status'] ?? null;
-
-        $where = [];
-        $params = [];
-        if ($from) {
-            $where[] = "created_at >= :from";
-            $params[':from'] = $from . ' 00:00:00';
-        }
-        if ($to) {
-            $where[] = "created_at <= :to";
-            $params[':to'] = $to . ' 23:59:59';
-        }
-        if ($status) {
-            $where[] = "status = :status";
-            $params[':status'] = $status;
-        }
-
-        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        [$whereSql, $params] = $this->buildFilters($request->getQueryParams());
 
         $stmt = $this->db->getConnection()->prepare("
             SELECT * FROM leads $whereSql 
@@ -266,6 +246,10 @@ class AdminController
             }
         }
 
+        $header[] = 'Marketing Consent';
+        $header[] = 'Consent Text';
+        $header[] = 'Consent Date';
+        $header[] = 'Consent Withdrawn At';
         $header[] = 'Status';
         $header[] = 'Notes';
         $header[] = 'Country Code';
@@ -274,7 +258,7 @@ class AdminController
         $header[] = 'Date';
 
         $output = fopen('php://temp', 'r+');
-        fputcsv($output, $header);
+        fputcsv($output, $header, escape: '\\');
 
         while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
             $data = json_decode($row['data'], true);
@@ -294,13 +278,23 @@ class AdminController
                 }
             }
 
+            $leadConsent = $data['_consent'] ?? [];
+            $csvRow[] = match (self::marketingConsentState($data)) {
+                'opted_in' => 'Yes',
+                'withdrawn' => 'Withdrawn',
+                'declined' => 'No',
+                default => 'Unknown',
+            };
+            $csvRow[] = $leadConsent['marketing_text'] ?? '';
+            $csvRow[] = $leadConsent['captured_at'] ?? '';
+            $csvRow[] = $leadConsent['marketing_withdrawn_at'] ?? '';
             $csvRow[] = $row['status'];
             $csvRow[] = $row['notes'];
             $csvRow[] = $row['ip_country_code'] ?? '';
             $csvRow[] = $row['ip_region'] ?? '';
             $csvRow[] = $row['ip_city'] ?? '';
             $csvRow[] = $row['created_at'];
-            fputcsv($output, $csvRow);
+            fputcsv($output, $csvRow, escape: '\\');
         }
 
         rewind($output);
@@ -340,6 +334,99 @@ class AdminController
 
         $response->getBody()->write(json_encode(['success' => true]));
         return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function withdrawConsent(Request $request, Response $response, array $args): Response
+    {
+        $id = $args['id'];
+
+        $pdo = $this->db->getConnection();
+
+        $stmt = $pdo->prepare("SELECT 1 FROM leads WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        if ($stmt->fetchColumn() === false) {
+            $response->getBody()->write(json_encode(['success' => false, 'error' => 'Lead not found']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+        }
+
+        // Check-and-set in one statement; json_set leaves the rest of the stored JSON untouched
+        $withdrawnAt = gmdate('c');
+        $updateStmt = $pdo->prepare("
+            UPDATE leads
+            SET data = json_set(data, '$._consent.marketing_withdrawn_at', :withdrawn_at)
+            WHERE id = :id
+              AND json_extract(data, '$._consent.marketing') = 1
+              AND json_extract(data, '$._consent.marketing_withdrawn_at') IS NULL
+        ");
+        $updateStmt->execute([':withdrawn_at' => $withdrawnAt, ':id' => $id]);
+
+        if ($updateStmt->rowCount() === 0) {
+            $response->getBody()->write(json_encode(['success' => false, 'error' => 'Lead has no active marketing consent']));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        $response->getBody()->write(json_encode(['success' => true, 'withdrawn_at' => $withdrawnAt]));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * Returns 'opted_in', 'declined', 'withdrawn', or 'unknown' (lead captured before consent tracking).
+     */
+    public static function marketingConsentState(array $leadData): string
+    {
+        $consent = $leadData['_consent'] ?? null;
+        if (!is_array($consent) || !array_key_exists('marketing', $consent)) {
+            return 'unknown';
+        }
+        if (!empty($consent['marketing_withdrawn_at'])) {
+            return 'withdrawn';
+        }
+        return $consent['marketing'] === true ? 'opted_in' : 'declined';
+    }
+
+    private static function normalizeConsentFilter(mixed $value): ?string
+    {
+        return is_string($value) && isset(self::CONSENT_FILTERS[$value]) ? $value : null;
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private function buildFilters(array $queryParams): array
+    {
+        $from = $queryParams['from'] ?? null;
+        $to = $queryParams['to'] ?? null;
+        $status = $queryParams['status'] ?? null;
+        $consent = self::normalizeConsentFilter($queryParams['consent'] ?? null);
+
+        $where = [];
+        $params = [];
+        if ($from) {
+            $where[] = "created_at >= :from";
+            $params[':from'] = $from . ' 00:00:00';
+        }
+        if ($to) {
+            $where[] = "created_at <= :to";
+            $params[':to'] = $to . ' 23:59:59';
+        }
+        if ($status) {
+            $where[] = "status = :status";
+            $params[':status'] = $status;
+        }
+
+        // Fixed SQL fragments: json_extract returns integers for JSON booleans, so bound text params would not match
+        $consentFilters = [
+            'yes' => "(json_extract(data, '$._consent.marketing') = 1 AND json_extract(data, '$._consent.marketing_withdrawn_at') IS NULL)",
+            'no' => "(json_extract(data, '$._consent.marketing') = 0 OR json_extract(data, '$._consent.marketing_withdrawn_at') IS NOT NULL)",
+            'unknown' => "json_extract(data, '$._consent.marketing') IS NULL",
+        ];
+        if ($consent !== null) {
+            $where[] = $consentFilters[$consent];
+        }
+
+        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        return [$whereSql, $params];
     }
 
     public function lookupGeo(Request $request, Response $response, array $args): Response

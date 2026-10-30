@@ -60,6 +60,39 @@
                 </div>
             <?php endforeach; ?>
 
+            <?php if ($consent['marketing']['enabled'] || $consent['terms']['enabled'] || $consent['privacy_policy_url'] !== null): ?>
+                <div class="space-y-3">
+                    <?php if ($consent['marketing']['enabled']): ?>
+                        <div class="space-y-1.5">
+                            <label class="flex items-start space-x-3 cursor-pointer group">
+                                <input type="checkbox" name="_consent_marketing" value="1" class="mt-0.5 w-5 h-5 shrink-0 rounded border-gray-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]">
+                                <span class="text-sm text-gray-600 group-hover:text-gray-900 transition-colors"><?= htmlspecialchars($consent['marketing']['label']) ?></span>
+                            </label>
+                            <div class="error-message text-xs text-[var(--error-color)] min-h-[1rem] opacity-0 transition-opacity duration-200"></div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($consent['terms']['enabled']): ?>
+                        <div class="space-y-1.5">
+                            <label class="flex items-start space-x-3 cursor-pointer group">
+                                <input type="checkbox" name="_consent_terms" value="1" required data-error-message="<?= htmlspecialchars($consent['terms']['error_message']) ?>" class="mt-0.5 w-5 h-5 shrink-0 rounded border-gray-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]">
+                                <span class="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
+                                    <?= htmlspecialchars($consent['terms']['label']) ?>
+                                    <span class="text-[var(--error-color)]">*</span>
+                                </span>
+                            </label>
+                            <div class="error-message text-xs text-[var(--error-color)] min-h-[1rem] opacity-0 transition-opacity duration-200"></div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($consent['privacy_policy_url'] !== null): ?>
+                        <p class="text-xs text-gray-500">
+                            Read our <a href="<?= htmlspecialchars($consent['privacy_policy_url']) ?>" target="_blank" rel="noopener" class="underline hover:text-gray-700">Privacy Policy</a> to learn how we use your information.
+                        </p>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
             <div id="form-error" class="hidden p-3 text-sm text-[var(--error-color)] bg-red-50 rounded-lg mb-4"></div>
 
             <button type="submit" class="w-full py-3.5 px-4 bg-[var(--primary-color)] text-white font-semibold rounded-lg hover:brightness-110 active:scale-[0.98] transition-all duration-200 shadow-md flex items-center justify-center space-x-2">
@@ -92,8 +125,13 @@
         };
 
         const getErrorMessage = (input) => {
+            if (input.dataset.errorMessage && input.validity.valueMissing) {
+                return input.dataset.errorMessage;
+            }
             const label = input.closest('.space-y-1\\.5').querySelector('label').innerText.replace('*', '').trim();
-            if (input.validity.valueMissing || (input.type === 'checkbox' && !form.querySelectorAll(`input[name="${input.name}"]:checked`).length)) {
+            // Standalone checkboxes (e.g. marketing consent) are only validated when marked required
+            const isCheckboxGroup = input.type === 'checkbox' && input.name.endsWith('[]');
+            if (input.validity.valueMissing || (isCheckboxGroup && !form.querySelectorAll(`input[name="${input.name}"]:checked`).length)) {
                 return `${label} is required.`;
             }
             if (input.type === 'email' && !validators.email(input.value)) {

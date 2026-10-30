@@ -33,7 +33,7 @@
     <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
             <h1 class="text-3xl font-bold text-gray-900"><?= htmlspecialchars($title) ?></h1>
-            <a href="<?= htmlspecialchars($base_path) ?>/admin/export?from=<?= htmlspecialchars($from ?? '') ?>&to=<?= htmlspecialchars($to ?? '') ?>&status=<?= htmlspecialchars($status ?? '') ?>" 
+            <a href="<?= htmlspecialchars($base_path) ?>/admin/export?from=<?= htmlspecialchars($from ?? '') ?>&to=<?= htmlspecialchars($to ?? '') ?>&status=<?= htmlspecialchars($status ?? '') ?>&consent=<?= htmlspecialchars($consent ?? '') ?>"
                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[var(--primary-color)] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] mt-4 md:mt-0 transition-all">
                 Export CSV
             </a>
@@ -62,6 +62,19 @@
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php if ($showConsent): ?>
+                    <div class="w-full sm:w-auto">
+                        <label for="consent" class="block text-sm font-medium text-gray-700 mb-1">Marketing Consent</label>
+                        <select name="consent" id="consent" class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[var(--primary-color)] focus:border-[var(--primary-color)] outline-none text-sm">
+                            <option value="">Any</option>
+                            <?php foreach ($consentFilters as $value => $label): ?>
+                                <option value="<?= htmlspecialchars($value) ?>" <?= ($consent === $value) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($label) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
                 <div class="flex items-center gap-2">
                     <button type="submit" class="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800 transition-colors">Filter</button>
                     <a href="<?= htmlspecialchars($base_path) ?>/admin" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors">Clear</a>
@@ -87,6 +100,9 @@
                                     </th>
                                 <?php endforeach; ?>
                             <?php endif; ?>
+                            <?php if ($showConsent): ?>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marketing</th>
+                            <?php endif; ?>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geo</th>
@@ -96,7 +112,7 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         <?php if (empty($leads)): ?>
                             <tr>
-                                <td colspan="<?= count($fields) + ($source_tracking['enabled'] ? count($source_tracking['params']) : 0) + 5 ?>" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="<?= count($fields) + ($source_tracking['enabled'] ? count($source_tracking['params']) : 0) + ($showConsent ? 1 : 0) + 5 ?>" class="px-6 py-12 text-center text-gray-500">
                                     No leads found.
                                 </td>
                             </tr>
@@ -127,6 +143,27 @@
                                             <?= htmlspecialchars((string)($source[$param] ?? '-')) ?>
                                         </td>
                                     <?php endforeach; ?>
+                                <?php endif; ?>
+                                <?php if ($showConsent): ?>
+                                    <?php $leadConsent = $lead['data']['_consent'] ?? []; ?>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <?php if ($lead['consent_state'] === 'opted_in'): ?>
+                                            <button type="button" onclick="withdrawConsent(<?= $lead['id'] ?>, this)"
+                                                    title="Opted in <?= htmlspecialchars((string)($leadConsent['captured_at'] ?? '')) ?> — click to record withdrawal"
+                                                    class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 hover:bg-green-200 transition-colors">
+                                                Opted in
+                                            </button>
+                                        <?php elseif ($lead['consent_state'] === 'withdrawn'): ?>
+                                            <span title="Withdrawn <?= htmlspecialchars((string)$leadConsent['marketing_withdrawn_at']) ?>"
+                                                  class="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                                Withdrawn
+                                            </span>
+                                        <?php elseif ($lead['consent_state'] === 'declined'): ?>
+                                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">No</span>
+                                        <?php else: ?>
+                                            <span class="text-xs text-gray-400" title="<?= empty($leadConsent) ? 'Captured before consent tracking' : 'Marketing consent was not requested' ?>">—</span>
+                                        <?php endif; ?>
+                                    </td>
                                 <?php endif; ?>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <select onchange="updateStatus(<?= $lead['id'] ?>, this.value, this)" 
@@ -182,10 +219,10 @@
                 <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                     <div class="flex-1 flex justify-between sm:hidden">
                         <?php if ($page > 1): ?>
-                            <a href="?page=<?= $page - 1 ?>&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>&status=<?= urlencode($status ?? '') ?>" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                            <a href="?page=<?= $page - 1 ?>&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>&status=<?= urlencode($status ?? '') ?>&consent=<?= urlencode($consent ?? '') ?>" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
                         <?php endif; ?>
                         <?php if ($page < $totalPages): ?>
-                            <a href="?page=<?= $page + 1 ?>&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>&status=<?= urlencode($status ?? '') ?>" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                            <a href="?page=<?= $page + 1 ?>&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>&status=<?= urlencode($status ?? '') ?>&consent=<?= urlencode($consent ?? '') ?>" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
                         <?php endif; ?>
                     </div>
                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
@@ -203,7 +240,7 @@
                         <div>
                             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                                 <?php if ($page > 1): ?>
-                                    <a href="?page=<?= $page - 1 ?>&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>&status=<?= urlencode($status ?? '') ?>" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                    <a href="?page=<?= $page - 1 ?>&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>&status=<?= urlencode($status ?? '') ?>&consent=<?= urlencode($consent ?? '') ?>" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                                         <span class="sr-only">Previous</span>
                                         <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -216,7 +253,7 @@
                                 </span>
 
                                 <?php if ($page < $totalPages): ?>
-                                    <a href="?page=<?= $page + 1 ?>&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>&status=<?= urlencode($status ?? '') ?>" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                    <a href="?page=<?= $page + 1 ?>&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>&status=<?= urlencode($status ?? '') ?>&consent=<?= urlencode($consent ?? '') ?>" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                                         <span class="sr-only">Next</span>
                                         <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
@@ -337,6 +374,34 @@
             } catch (err) {
                 console.error(err);
                 alert('Network error');
+            }
+        }
+
+        async function withdrawConsent(id, btn) {
+            if (!confirm('Record that this lead has withdrawn marketing consent? This cannot be undone; the lead must opt in again via the form.')) {
+                return;
+            }
+            btn.disabled = true;
+            try {
+                const response = await fetch('<?= $base_path ?>/admin/leads/' + id + '/consent/withdraw', {
+                    method: 'POST',
+                });
+                const result = await response.json();
+                if (result.success) {
+                    const badge = document.createElement('span');
+                    badge.className = 'px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800';
+                    badge.title = 'Withdrawn ' + result.withdrawn_at;
+                    badge.textContent = 'Withdrawn';
+                    btn.replaceWith(badge);
+                    showToast('Consent withdrawal recorded');
+                } else {
+                    alert(result.error || 'Error recording withdrawal');
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error');
+                btn.disabled = false;
             }
         }
 

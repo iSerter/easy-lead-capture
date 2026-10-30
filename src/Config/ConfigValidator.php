@@ -66,6 +66,18 @@ class ConfigValidator
             'from_address' => null,
             'from_name' => null,
         ],
+        'consent' => [
+            'marketing' => [
+                'enabled' => true,
+                'label' => 'Yes, send me news and promotional emails. I can unsubscribe at any time.',
+            ],
+            'terms' => [
+                'enabled' => false,
+                'label' => 'I agree to the Terms of Service and Privacy Policy.',
+                'error_message' => 'You must accept the terms to continue.',
+            ],
+            'privacy_policy_url' => null,
+        ],
         'source_tracking' => [
             'enabled' => true,
             'params' => [
@@ -116,6 +128,10 @@ class ConfigValidator
         foreach ($mergedConfig['form']['fields'] as $key => $field) {
             if (!is_array($field) || !isset($field['label'])) {
                 throw new InvalidArgumentException("Config error: Field '{$key}' must have a 'label'.");
+            }
+            // Underscore-prefixed keys are reserved for metadata (_csrf_token, _source, _consent, ...)
+            if (str_starts_with((string)$key, '_')) {
+                throw new InvalidArgumentException("Config error: Field '{$key}' must not start with '_' (reserved for internal use).");
             }
         }
 
@@ -221,6 +237,40 @@ class ConfigValidator
                 }
                 $seen[$param] = true;
             }
+        }
+
+        // 9. Validate consent
+        foreach (['marketing', 'terms'] as $consentType) {
+            $consentConfig = $mergedConfig['consent'][$consentType];
+
+            if (!is_array($consentConfig)) {
+                throw new InvalidArgumentException("Config error: 'consent.{$consentType}' must be an array (e.g. ['enabled' => false]).");
+            }
+
+            if (!is_bool($consentConfig['enabled'])) {
+                throw new InvalidArgumentException("Config error: 'consent.{$consentType}.enabled' must be a boolean.");
+            }
+
+            if ($consentConfig['enabled'] && (!is_string($consentConfig['label']) || trim($consentConfig['label']) === '')) {
+                throw new InvalidArgumentException("Config error: 'consent.{$consentType}.label' must be a non-empty string when enabled.");
+            }
+        }
+
+        if (
+            $mergedConfig['consent']['terms']['enabled']
+            && (!is_string($mergedConfig['consent']['terms']['error_message']) || trim($mergedConfig['consent']['terms']['error_message']) === '')
+        ) {
+            throw new InvalidArgumentException("Config error: 'consent.terms.error_message' must be a non-empty string when enabled.");
+        }
+
+        if (
+            $mergedConfig['consent']['privacy_policy_url'] !== null
+            && (
+                !filter_var($mergedConfig['consent']['privacy_policy_url'], FILTER_VALIDATE_URL)
+                || !preg_match('#^https?://#i', $mergedConfig['consent']['privacy_policy_url'])
+            )
+        ) {
+            throw new InvalidArgumentException("Config error: 'consent.privacy_policy_url' must be a valid URL or null.");
         }
 
         return $mergedConfig;

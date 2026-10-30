@@ -11,6 +11,7 @@ A lightweight, embeddable lead capture system for PHP. Beautiful forms, SQLite s
 - **Email notifications** — SMTP, Sendmail, or SES (sent after response for fast submissions)
 - **API ping** — POST lead data to your own API/webhook on each submission (deferred)
 - **reCAPTCHA v3** — optional, configurable score threshold
+- **GDPR-ready email consent** — unticked marketing opt-in, optional required terms checkbox, proof-of-consent records, and withdrawal tracking ([guide](docs/dev-guide/consent.md))
 - **Admin panel** — view leads, filter by date, export CSV
 - **Lightweight** — <20KB iframe payload, no frontend framework
 
@@ -123,6 +124,20 @@ EasyLeadCapture.render('#lead-form', {
   }
 });
 ```
+
+### Email consent
+
+The form shows an optional, unticked "send me promotional emails" checkbox by default. Each lead stores a proof-of-consent record (the value, the exact wording shown, and a timestamp), which appears in the admin panel, CSV export, notification email and API ping. You can customise the wording, add a required terms checkbox, or link your privacy policy:
+
+```php
+'consent' => [
+    'marketing' => ['label' => 'Send me product updates and offers. Unsubscribe anytime.'],
+    'terms' => ['enabled' => true],
+    'privacy_policy_url' => 'https://example.com/privacy',
+],
+```
+
+See the [Email Consent guide](docs/dev-guide/consent.md).
 
 ### 4. Admin Panel
 

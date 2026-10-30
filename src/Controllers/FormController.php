@@ -51,6 +51,7 @@ class FormController
             'captcha' => $this->config['captcha'],
             'csrf_token' => $_SESSION['csrf_token'],
             'on_submit' => $this->config['on_submit'],
+            'consent' => $this->config['consent'],
             'csp_nonce' => $cspNonce,
         ];
 

@@ -20,7 +20,7 @@ This document provides a full reference of all available configuration options f
 | `colors` | `array` | *(see below)* | UI color customization. |
 
 ### Fields (`form.fields`)
-Each field is defined by an ID and an array of options:
+Each field is defined by an ID and an array of options. IDs must not start with `_`. That prefix is reserved for internal data (`_csrf_token`, `_source`, `_consent`).
 ```php
 'fields' => [
     'email' => [
@@ -54,6 +54,15 @@ Each field is defined by an ID and an array of options:
 - `recaptcha_site_key`: `string`
 - `recaptcha_secret_key`: `string`
 - `threshold`: `float` (0.0 - 1.0)
+
+### Consent (`consent`)
+- `marketing.enabled`: `boolean` (default: `true`). Shows the optional, unticked promotional-email opt-in.
+- `marketing.label`: `string`
+- `terms.enabled`: `boolean` (default: `false`). Shows a required "I agree" checkbox.
+- `terms.label`, `terms.error_message`: `string`
+- `privacy_policy_url`: `string|null` (an `http(s)` URL)
+
+See the [Email Consent Guide](consent.md) for what is stored and how withdrawal works.
 
 ### Source Tracking (`source_tracking`)
 - `enabled`: `boolean`

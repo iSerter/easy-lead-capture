@@ -248,4 +248,69 @@ class ConfigValidatorTest extends TestCase
         $this->assertNull($config['admin']['email']);
         $this->assertEquals('hello@example.com', $config['confirmation_email']['from_address']);
     }
+
+    public function test_consent_defaults(): void
+    {
+        $config = ConfigValidator::validate(['admin' => ['password' => 'secret']]);
+
+        $this->assertTrue($config['consent']['marketing']['enabled']);
+        $this->assertNotEmpty($config['consent']['marketing']['label']);
+        $this->assertFalse($config['consent']['terms']['enabled']);
+        $this->assertNull($config['consent']['privacy_policy_url']);
+    }
+
+    public function test_it_validates_consent_enabled_type(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('consent.marketing.enabled');
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'consent' => ['marketing' => ['enabled' => 'yes']],
+        ]);
+    }
+
+    public function test_it_validates_consent_label_when_enabled(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('consent.terms.label');
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'consent' => ['terms' => ['enabled' => true, 'label' => '  ']],
+        ]);
+    }
+
+    public function test_it_validates_privacy_policy_url(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('consent.privacy_policy_url');
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'consent' => ['privacy_policy_url' => 'javascript://alert(1)'],
+        ]);
+    }
+
+    public function test_it_rejects_non_array_consent_section(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("'consent.marketing' must be an array");
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'consent' => ['marketing' => false],
+        ]);
+    }
+
+    public function test_it_rejects_underscore_prefixed_field_ids(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Field '_consent' must not start with '_'");
+
+        ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'form' => ['fields' => ['_consent' => ['label' => 'Consent']]],
+        ]);
+    }
 }

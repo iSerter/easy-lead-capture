@@ -48,6 +48,26 @@ class MailerTest extends TestCase
         $this->assertStringContainsString('<th>Field</th><th>Value</th>', (string)$message->getHtmlBody());
     }
 
+    public function test_lead_notification_includes_consent(): void
+    {
+        $transport = new CapturingMailer();
+        $mailer = new Mailer($transport);
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret', 'email' => 'admin@example.com'],
+        ]);
+
+        $mailer->sendLeadNotification([
+            'name' => 'Jane Doe',
+            'email' => 'jane@example.com',
+            '_consent' => ['marketing' => true, 'captured_at' => '2026-01-01T00:00:00+00:00'],
+        ], $config);
+
+        $html = (string)$transport->lastMessage->getHtmlBody();
+        $this->assertStringContainsString('<h3 style="margin-top: 20px;">Consent</h3>', $html);
+        $this->assertStringContainsString('Marketing emails</td><td>Yes', $html);
+        $this->assertStringNotContainsString('Terms accepted', $html);
+    }
+
     public function test_it_sends_confirmation_email_with_default_template(): void
     {
         $transport = new CapturingMailer();

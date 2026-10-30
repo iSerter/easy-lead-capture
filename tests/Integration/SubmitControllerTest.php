@@ -196,7 +196,8 @@ class SubmitControllerTest extends TestCase
         $lead = $pdo->query("SELECT * FROM leads LIMIT 1")->fetch();
         $storedData = json_decode($lead['data'], true);
 
-        $this->assertCount(2, $storedData);
+        // Only submitted form fields are stored (plus the _consent metadata record)
+        $this->assertCount(2, array_diff_key($storedData, ['_consent' => true]));
         $this->assertEquals('John Doe', $storedData['name']);
     }
 
@@ -403,5 +404,132 @@ class SubmitControllerTest extends TestCase
         $property->setAccessible(true);
 
         return $property->getValue($deferred);
+    }
+
+    public function test_it_records_marketing_consent_when_checked(): void
+    {
+        $lead = $this->submitAndFetch($this->config, ['_consent_marketing' => '1']);
+
+        $consent = $lead['_consent'];
+        $this->assertTrue($consent['marketing']);
+        $this->assertEquals($this->config['consent']['marketing']['label'], $consent['marketing_text']);
+        $this->assertNull($consent['marketing_withdrawn_at']);
+        $this->assertNotEmpty($consent['captured_at']);
+        $this->assertArrayNotHasKey('terms', $consent);
+    }
+
+    public function test_it_records_declined_marketing_consent_when_unchecked(): void
+    {
+        $lead = $this->submitAndFetch($this->config, []);
+
+        $this->assertFalse($lead['_consent']['marketing']);
+    }
+
+    public function test_it_accepts_standard_checked_values(): void
+    {
+        foreach (['1', 'on', 'true', true, 1] as $value) {
+            $lead = $this->submitAndFetch($this->config, ['_consent_marketing' => $value]);
+            $this->assertTrue($lead['_consent']['marketing'], 'Value ' . var_export($value, true) . ' should count as consent');
+        }
+    }
+
+    public function test_it_treats_unexpected_consent_values_as_declined(): void
+    {
+        foreach (['0', 'false', 'yes please', ''] as $value) {
+            $lead = $this->submitAndFetch($this->config, ['_consent_marketing' => $value]);
+            $this->assertFalse($lead['_consent']['marketing'], "Value '{$value}' must not count as consent");
+        }
+    }
+
+    public function test_it_ignores_client_supplied_consent_text(): void
+    {
+        $lead = $this->submitAndFetch($this->config, [
+            '_consent_marketing' => '1',
+            '_consent' => ['marketing_text' => 'forged'],
+        ]);
+
+        $this->assertEquals($this->config['consent']['marketing']['label'], $lead['_consent']['marketing_text']);
+    }
+
+    public function test_it_rejects_submission_without_required_terms(): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['csrf_token'] = 'test_token';
+
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'consent' => ['terms' => ['enabled' => true]],
+        ]);
+        $controller = new SubmitController($config, $this->db, new DeferredTaskRunner());
+
+        $request = (new RequestFactory())->createRequest('POST', '/submit');
+        $request = $request->withBody((new StreamFactory())->createStream(json_encode([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            '_csrf_token' => 'test_token',
+        ])));
+        $request = $request->withHeader('Content-Type', 'application/json');
+
+        $response = $controller->handle($request, (new ResponseFactory())->createResponse());
+
+        $this->assertEquals(422, $response->getStatusCode());
+        $body = json_decode((string)$response->getBody(), true);
+        $this->assertEquals('You must accept the terms to continue.', $body['errors']['_consent_terms']);
+        $this->assertEquals(0, (int)$this->db->getConnection()->query("SELECT COUNT(*) FROM leads")->fetchColumn());
+    }
+
+    public function test_it_records_terms_acceptance_and_privacy_url(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'consent' => [
+                'terms' => ['enabled' => true],
+                'privacy_policy_url' => 'https://example.com/privacy',
+            ],
+        ]);
+
+        $lead = $this->submitAndFetch($config, ['_consent_terms' => '1']);
+
+        $this->assertTrue($lead['_consent']['terms']);
+        $this->assertFalse($lead['_consent']['marketing']);
+        $this->assertEquals('https://example.com/privacy', $lead['_consent']['privacy_policy_url']);
+    }
+
+    public function test_it_omits_consent_record_when_all_consent_disabled(): void
+    {
+        $config = ConfigValidator::validate([
+            'admin' => ['password' => 'secret'],
+            'consent' => ['marketing' => ['enabled' => false]],
+        ]);
+
+        $lead = $this->submitAndFetch($config, ['_consent_marketing' => '1']);
+
+        $this->assertArrayNotHasKey('_consent', $lead);
+    }
+
+    private function submitAndFetch(array $config, array $extraInput): array
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['csrf_token'] = 'test_token';
+
+        $controller = new SubmitController($config, $this->db, new DeferredTaskRunner());
+
+        $request = (new RequestFactory())->createRequest('POST', '/submit');
+        $request = $request->withBody((new StreamFactory())->createStream(json_encode(array_merge([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            '_csrf_token' => 'test_token',
+        ], $extraInput))));
+        $request = $request->withHeader('Content-Type', 'application/json');
+
+        $response = $controller->handle($request, (new ResponseFactory())->createResponse());
+        $this->assertEquals(200, $response->getStatusCode());
+
+        $row = $this->db->getConnection()->query("SELECT data FROM leads ORDER BY id DESC LIMIT 1")->fetch();
+        return json_decode($row['data'], true);
     }
 }

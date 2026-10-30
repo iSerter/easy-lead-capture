@@ -96,6 +96,11 @@ class SubmitController
             }
         }
 
+        $termsConfig = $this->config['consent']['terms'];
+        if ($termsConfig['enabled'] && !$this->isChecked($input['_consent_terms'] ?? null)) {
+            $errors['_consent_terms'] = $termsConfig['error_message'];
+        }
+
         if (!empty($errors)) {
             $response->getBody()->write(json_encode([
                 'success' => false,
@@ -108,6 +113,12 @@ class SubmitController
         if ($this->config['source_tracking']['enabled']) {
             $sourceData = $_SESSION['elc_source'] ?? [];
             $validatedData = SourceTracker::mergeIntoLeadData($validatedData, $sourceData);
+        }
+
+        // Proof-of-consent record (texts come from server config, never from the client)
+        $consentRecord = $this->buildConsentRecord($input);
+        if ($consentRecord !== null) {
+            $validatedData['_consent'] = $consentRecord;
         }
 
         // Store lead
@@ -180,6 +191,43 @@ class SubmitController
 
         $serverParams = $request->getServerParams();
         return $serverParams['REMOTE_ADDR'] ?? '0.0.0.0';
+    }
+
+    private function buildConsentRecord(array $input): ?array
+    {
+        $consentConfig = $this->config['consent'];
+        $marketingEnabled = $consentConfig['marketing']['enabled'];
+        $termsEnabled = $consentConfig['terms']['enabled'];
+
+        if (!$marketingEnabled && !$termsEnabled) {
+            return null;
+        }
+
+        $record = [];
+
+        if ($marketingEnabled) {
+            $record['marketing'] = $this->isChecked($input['_consent_marketing'] ?? null);
+            $record['marketing_text'] = $consentConfig['marketing']['label'];
+            $record['marketing_withdrawn_at'] = null;
+        }
+
+        if ($termsEnabled) {
+            $record['terms'] = $this->isChecked($input['_consent_terms'] ?? null);
+            $record['terms_text'] = $consentConfig['terms']['label'];
+        }
+
+        if ($consentConfig['privacy_policy_url'] !== null) {
+            $record['privacy_policy_url'] = $consentConfig['privacy_policy_url'];
+        }
+
+        $record['captured_at'] = gmdate('c');
+
+        return $record;
+    }
+
+    private function isChecked(mixed $value): bool
+    {
+        return in_array($value, [true, 1, '1', 'on', 'true'], true);
     }
 
     private function hasLeadEmailAddress(array $leadData): bool

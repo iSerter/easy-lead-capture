@@ -25,7 +25,7 @@ Enable the feature in your `App` configuration:
 
 ## Payload Structure
 
-The payload includes all submitted form fields plus a `created_at` timestamp and any source tracking data.
+The payload includes all submitted form fields, a `created_at` timestamp, any source tracking data, and the consent record (see the [Email Consent guide](consent.md)). Only add a lead to promotional lists when `_consent.marketing` is `true`.
 
 ```json
 {
@@ -36,6 +36,12 @@ The payload includes all submitted form fields plus a `created_at` timestamp and
   "_source": {
     "utm_source": "google",
     "utm_medium": "cpc"
+  },
+  "_consent": {
+    "marketing": true,
+    "marketing_text": "Yes, send me news and promotional emails. I can unsubscribe at any time.",
+    "marketing_withdrawn_at": null,
+    "captured_at": "2026-05-30T14:05:22+00:00"
   }
 }
 ```
